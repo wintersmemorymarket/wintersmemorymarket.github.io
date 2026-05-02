@@ -1,0 +1,1101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Winters Memory Market LLC — Tracker</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f4f0;color:#1a1a18;min-height:100vh}
+header{background:#1a1a18;color:#f5f4f0;padding:14px 24px;display:flex;align-items:center;justify-content:space-between}
+header h1{font-size:16px;font-weight:500;letter-spacing:0.01em}
+header span{font-size:12px;opacity:0.5}
+.container{max-width:1400px;margin:0 auto;padding:24px}
+.sync-bar{display:flex;align-items:center;gap:8px;margin-bottom:1.25rem;font-size:12px;color:#888780}
+.sync-dot{width:8px;height:8px;border-radius:50%;background:#1D9E75;flex-shrink:0;transition:background 0.3s}
+.sync-dot.syncing{background:#BA7517;animation:blink 1s infinite}
+.sync-dot.error{background:#E24B4A}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+.tab-bar{display:flex;gap:2px;border-bottom:1px solid #e0dfd7;margin-bottom:1.5rem;flex-wrap:wrap}
+.tab{padding:8px 16px;font-size:13px;cursor:pointer;border:none;background:none;color:#888780;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap}
+.tab.active{color:#1a1a18;border-bottom:2px solid #1a1a18;font-weight:500}
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-bottom:1.5rem}
+.metric{background:#ebebE4;border-radius:8px;padding:10px 12px}
+.metric-label{font-size:11px;color:#888780;margin-bottom:3px}
+.metric-value{font-size:18px;font-weight:500;color:#1a1a18}
+.green{color:#0F6E56}.red{color:#A32D2D}
+.card{background:#fff;border:1px solid #e0dfd7;border-radius:12px;padding:1rem 1.25rem;margin-bottom:1rem}
+.section-title{font-size:14px;font-weight:500;margin-bottom:12px;color:#1a1a18}
+.form-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-bottom:10px}
+.form-group{display:flex;flex-direction:column;gap:3px}
+.form-group label{font-size:11px;color:#888780}
+.form-group input,.form-group select{font-size:13px;padding:7px 10px;border:1px solid #d3d1c7;border-radius:8px;background:#fff;color:#1a1a18;width:100%}
+.form-group input:focus,.form-group select:focus{outline:none;border-color:#888780}
+.btn{padding:8px 16px;border-radius:8px;font-size:13px;cursor:pointer;border:1px solid #d3d1c7;background:#fff;color:#1a1a18}
+.btn:hover{background:#f1efe8}
+.btn-primary{background:#1a1a18;color:#fff;border-color:#1a1a18}
+.btn-primary:hover{opacity:0.85}
+table{width:100%;font-size:12px;border-collapse:collapse}
+th{text-align:left;padding:8px 10px;color:#888780;font-weight:500;font-size:11px;border-bottom:1px solid #e0dfd7;background:#fafaf8;white-space:nowrap}
+td{padding:8px 10px;border-bottom:1px solid #e0dfd7;color:#1a1a18}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#fafaf8}
+.badge{display:inline-block;padding:1px 7px;border-radius:20px;font-size:11px;font-weight:500;white-space:nowrap}
+.b-listed{background:#E1F5EE;color:#085041}
+.b-sold{background:#E6F1FB;color:#0C447C}
+.b-unlisted{background:#F1EFE8;color:#444441}
+.b-fl{background:#FAEEDA;color:#633806}
+.b-nc{background:#EEEDFE;color:#3C3489}
+.b-inherited{background:#FBEAF0;color:#72243E}
+.b-purchased{background:#EAF3DE;color:#27500A}
+.b-consignment{background:#FFF3CD;color:#856404}
+.b-pre{background:#FCEBEB;color:#791F1F}
+.b-post{background:#E1F5EE;color:#085041}
+.del-btn{background:none;border:none;cursor:pointer;color:#b4b2a9;font-size:13px;padding:1px 5px;border-radius:3px}
+.del-btn:hover{color:#A32D2D;background:#FCEBEB}
+.empty{text-align:center;padding:2rem;color:#b4b2a9;font-size:13px}
+.tax-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+@media(max-width:640px){.tax-grid{grid-template-columns:1fr}}
+.tax-note{font-size:11px;color:#888780;line-height:1.6;margin-top:8px}
+.filter-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center}
+.filter-row label{font-size:11px;color:#888780}
+.filter-row select{font-size:12px;padding:5px 8px;border:1px solid #d3d1c7;border-radius:6px;background:#fff;color:#1a1a18}
+.tscroll{overflow-x:auto}
+.llc-note{font-size:11px;color:#888780;background:#f5f4f0;border-radius:0;padding:6px 10px;margin-bottom:12px;border-left:3px solid #d3d1c7}
+.loading{text-align:center;padding:3rem;color:#888780;font-size:13px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Winters Memory Market LLC</h1>
+  <span>Business Tracker</span>
+</header>
+<div class="container">
+  <div class="sync-bar">
+    <div class="sync-dot" id="sdot"></div>
+    <span id="sstatus">Connecting to Firebase...</span>
+  </div>
+
+  <div class="tab-bar">
+    <button class="tab active" onclick="showTab('inventory')">Inventory</button>
+    <button class="tab" onclick="showTab('sales')">Sales</button>
+    <button class="tab" onclick="showTab('dashboard')">Dashboard</button>
+    <button class="tab" onclick="showTab('taxes')">Taxes</button>
+    <button class="tab" onclick="showTab('salestax')">Sales Tax</button>
+    <button class="tab" onclick="showTab('expenses')">Expenses</button>
+  </div>
+
+  <!-- INVENTORY -->
+  <div id="tab-inventory">
+    <div class="metrics" id="inv-metrics"><div class="loading">Loading...</div></div>
+    <div class="card">
+      <div class="section-title">Add item</div>
+      <div class="form-row">
+        <div class="form-group"><label>Item name</label><input id="i-name" placeholder="e.g. 1940s rhinestone brooch"></div>
+        <div class="form-group"><label>SKU</label><input id="i-sku" placeholder="JWL-001"></div>
+        <div class="form-group"><label>Category</label>
+          <select id="i-cat">
+            <option>Advertising</option>
+            <option>Art</option>
+            <option>Automotive & Aviation</option>
+            <option>Books & Magazines</option>
+            <option>Ceramics & Glassware</option>
+            <option>Christmas & Halloween</option>
+            <option>Clothing & Textiles</option>
+            <option>Collectibles</option>
+            <option>Comics & Pulps</option>
+            <option>Crafts & Patterns</option>
+            <option>Disasteriana</option>
+            <option>Disneyiana</option>
+            <option>Dolls & Stuffed Animals</option>
+            <option>Entertainment Memorabilia</option>
+            <option>Ephemera & Trade Cards</option>
+            <option>Equestrian</option>
+            <option>Farming & Equipment</option>
+            <option>Golf</option>
+            <option>Housewares & Tins</option>
+            <option>Hunting & Outdoors</option>
+            <option>Jewelry & Pins</option>
+            <option>Militaria</option>
+            <option>Movie & Music Posters</option>
+            <option>Music (Records & Cassettes)</option>
+            <option>Photography & Snapshots</option>
+            <option>Political & Presidential</option>
+            <option>Post Cards</option>
+            <option>Railroadiana & Trains</option>
+            <option>Souvenirs</option>
+            <option>Sports Memorabilia</option>
+            <option>Stamps & Postal History</option>
+            <option>Stereoviews</option>
+            <option>Tobacciana</option>
+            <option>Toys & Games</option>
+            <option>Video Games</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Condition</label>
+          <select id="i-cond"><option>NWT</option><option>NWOT</option><option>Excellent</option><option>Very Good</option><option>Good</option><option>Fair</option><option>Parts/As-Is</option></select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Source</label>
+          <select id="i-source"><option>Inherited</option><option>Purchased</option><option>Consignment</option></select>
+        </div>
+        <div class="form-group"><label>Era</label>
+          <select id="i-era"><option value="pre">Pre-LLC (before Jul 22, 2025)</option><option value="post">Post-LLC (Jul 22, 2025+)</option></select>
+        </div>
+        <div class="form-group"><label>Location</label>
+          <select id="i-loc"><option>NC</option><option>FL</option></select>
+        </div>
+        <div class="form-group"><label>Cost basis ($)</label>
+          <input id="i-cost" type="number" step="0.01" placeholder="0.00">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>List price ($)</label><input id="i-list" type="number" step="0.01" placeholder="0.00"></div>
+        <div class="form-group"><label>Status</label>
+          <select id="i-status"><option>Unlisted</option><option>Listed</option></select>
+        </div>
+        <div class="form-group"><label>Date acquired</label><input id="i-date" type="date"></div>
+        <div class="form-group"><label>Ship weight (oz)</label><input id="i-weight" type="number" step="0.1" placeholder="0.0"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Package dims (L×W×H in)</label><input id="i-dims" placeholder='e.g. 12×9×4'></div>
+        <div class="form-group"><label>Place of purchase</label><input id="i-purchase-source" placeholder="e.g. Thrift Store"></div>
+        <div class="form-group"><label>Order ID</label><input id="i-orderid" placeholder="e.g. 381212984"></div>
+        <div class="form-group"><label>Notes</label><input id="i-notes" placeholder="Any extra details"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group" style="grid-column:1/-1;">
+          <label>Item measurements (inches)</label>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:6px;">
+            <div>
+              <label style="font-size:10px;color:#888780;margin-bottom:3px;display:block;">Length</label>
+              <input id="i-meas-l" type="text" inputmode="decimal" placeholder='e.g. 3.5"' oninput="updateTrackerMeas()" style="font-size:13px;padding:8px 10px;border:1px solid #d3d1c7;border-radius:8px;background:#fff;color:#1a1a18;width:100%;">
+            </div>
+            <div>
+              <label style="font-size:10px;color:#888780;margin-bottom:3px;display:block;">Width</label>
+              <input id="i-meas-w" type="text" inputmode="decimal" placeholder='e.g. 2"' oninput="updateTrackerMeas()" style="font-size:13px;padding:8px 10px;border:1px solid #d3d1c7;border-radius:8px;background:#fff;color:#1a1a18;width:100%;">
+            </div>
+            <div>
+              <label style="font-size:10px;color:#888780;margin-bottom:3px;display:block;">Height / Depth</label>
+              <input id="i-meas-h" type="text" inputmode="decimal" placeholder='e.g. 1"' oninput="updateTrackerMeas()" style="font-size:13px;padding:8px 10px;border:1px solid #d3d1c7;border-radius:8px;background:#fff;color:#1a1a18;width:100%;">
+            </div>
+          </div>
+          <div id="i-meas-display" style="font-size:11px;color:#888780;font-family:monospace;min-height:14px;"></div>
+        </div>
+        <div class="form-group" style="grid-column:1/-1;">
+          <label>eBay Listing URL <span style="font-weight:400;opacity:.7">(optional)</span></label>
+          <input id="i-ebay-url" type="url" placeholder="https://www.ebay.com/itm/..." style="font-size:13px;padding:7px 10px;border:1px solid #d3d1c7;border-radius:8px;background:#fff;color:#1a1a18;width:100%">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group" style="justify-content:flex-end;padding-top:4px">
+          <button class="btn btn-primary" onclick="addInventory()">Add item</button>
+        </div>
+      </div>
+    </div>
+    <div style="margin-bottom:10px">
+      <input id="inv-search" type="text" placeholder="Search by name, SKU, brand, notes, order ID..." oninput="renderInventory()" style="width:100%;font-size:13px;padding:8px 12px;border:1px solid #d3d1c7;border-radius:8px;background:#fff;color:#1a1a18">
+    </div>
+    <div class="filter-row">
+      <label>Filter:</label>
+      <select id="f-cat" onchange="renderInventory()"><option value="">All categories</option>
+<option>Advertising</option>
+<option>Art</option>
+<option>Automotive & Aviation</option>
+<option>Books & Magazines</option>
+<option>Ceramics & Glassware</option>
+<option>Christmas & Halloween</option>
+<option>Clothing & Textiles</option>
+<option>Collectibles</option>
+<option>Comics & Pulps</option>
+<option>Crafts & Patterns</option>
+<option>Disasteriana</option>
+<option>Disneyiana</option>
+<option>Dolls & Stuffed Animals</option>
+<option>Entertainment Memorabilia</option>
+<option>Ephemera & Trade Cards</option>
+<option>Equestrian</option>
+<option>Farming & Equipment</option>
+<option>Golf</option>
+<option>Housewares & Tins</option>
+<option>Hunting & Outdoors</option>
+<option>Jewelry & Pins</option>
+<option>Militaria</option>
+<option>Movie & Music Posters</option>
+<option>Music (Records & Cassettes)</option>
+<option>Photography & Snapshots</option>
+<option>Political & Presidential</option>
+<option>Post Cards</option>
+<option>Railroadiana & Trains</option>
+<option>Souvenirs</option>
+<option>Sports Memorabilia</option>
+<option>Stamps & Postal History</option>
+<option>Stereoviews</option>
+<option>Tobacciana</option>
+<option>Toys & Games</option>
+<option>Video Games</option>
+<option>Other</option>
+        <option>Jewelry</option><option>Ephemera</option><option>Clothing</option><option>Buttons</option>
+        <option>Sports Cards</option><option>Albums</option><option>CDs</option><option>Tapes</option>
+        <option>Posters</option><option>Photos</option><option>Memorabilia</option><option>Watches</option><option>Handmade</option><option>Other</option>
+      </select>
+      <select id="f-loc" onchange="renderInventory()"><option value="">All locations</option><option>FL</option><option>NC</option></select>
+      <select id="f-src" onchange="renderInventory()"><option value="">All sources</option><option>Inherited</option><option>Purchased</option><option>Consignment</option></select>
+      <select id="f-era" onchange="renderInventory()"><option value="">All eras</option><option value="pre">Pre-LLC</option><option value="post">Post-LLC</option></select>
+      <select id="f-status" onchange="renderInventory()"><option value="">All statuses</option><option>Listed</option><option>Unlisted</option></select>
+    </div>
+    <div class="tscroll" id="inv-table-wrap"></div>
+  </div>
+
+  <!-- SALES -->
+  <div id="tab-sales" style="display:none">
+    <div class="metrics" id="sales-metrics"><div class="loading">Loading...</div></div>
+    <div class="card">
+      <div class="section-title">Record sale manually</div>
+      <div class="form-row">
+        <div class="form-group"><label>Item</label>
+          <select id="s-item"></select>
+        </div>
+        <div class="form-group"><label>Platform</label>
+          <select id="s-plat"><option>eBay</option><option>Facebook</option><option>Instagram</option><option>Etsy</option><option>Other</option></select>
+        </div>
+        <div class="form-group"><label>Sale price ($)</label><input id="s-price" type="number" step="0.01" placeholder="0.00"></div>
+        <div class="form-group"><label>Platform fees ($)</label><input id="s-fees" type="number" step="0.01" placeholder="0.00"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Shipping cost ($)</label><input id="s-ship" type="number" step="0.01" placeholder="0.00"></div>
+        <div class="form-group"><label>Ship from</label><select id="s-loc"><option>NC</option><option>FL</option></select></div>
+        <div class="form-group"><label>Sale date</label><input id="s-date" type="date"></div>
+        <div class="form-group" style="justify-content:flex-end;padding-top:16px">
+          <button class="btn btn-primary" onclick="addSale()">Record sale</button>
+        </div>
+      </div>
+    </div>
+    <div style="margin-bottom:10px;margin-top:4px">
+      <input id="sales-search" type="text" placeholder="Search by item name, category, platform, order ID..." oninput="renderSales()" style="width:100%;font-size:13px;padding:8px 12px;border:1px solid #d3d1c7;border-radius:8px;background:#fff;color:#1a1a18">
+    </div>
+    <div class="filter-row">
+      <label>Filter:</label>
+      <select id="sf-plat" onchange="renderSales()"><option value="">All platforms</option><option>eBay</option><option>Facebook</option><option>Instagram</option><option>Etsy</option><option>Other</option></select>
+      <select id="sf-loc" onchange="renderSales()"><option value="">All locations</option><option>NC</option><option>FL</option></select>
+      <select id="sf-era" onchange="renderSales()"><option value="">All eras</option><option value="pre">Pre-LLC</option><option value="post">Post-LLC</option></select>
+      <select id="sf-cat" onchange="renderSales()"><option value="">All categories</option>
+<option>Advertising</option>
+<option>Art</option>
+<option>Automotive & Aviation</option>
+<option>Books & Magazines</option>
+<option>Ceramics & Glassware</option>
+<option>Christmas & Halloween</option>
+<option>Clothing & Textiles</option>
+<option>Collectibles</option>
+<option>Comics & Pulps</option>
+<option>Crafts & Patterns</option>
+<option>Disasteriana</option>
+<option>Disneyiana</option>
+<option>Dolls & Stuffed Animals</option>
+<option>Entertainment Memorabilia</option>
+<option>Ephemera & Trade Cards</option>
+<option>Equestrian</option>
+<option>Farming & Equipment</option>
+<option>Golf</option>
+<option>Housewares & Tins</option>
+<option>Hunting & Outdoors</option>
+<option>Jewelry & Pins</option>
+<option>Militaria</option>
+<option>Movie & Music Posters</option>
+<option>Music (Records & Cassettes)</option>
+<option>Photography & Snapshots</option>
+<option>Political & Presidential</option>
+<option>Post Cards</option>
+<option>Railroadiana & Trains</option>
+<option>Souvenirs</option>
+<option>Sports Memorabilia</option>
+<option>Stamps & Postal History</option>
+<option>Stereoviews</option>
+<option>Tobacciana</option>
+<option>Toys & Games</option>
+<option>Video Games</option>
+<option>Other</option>
+        <option>Clothing</option><option>Jewelry</option><option>Post Card</option><option>Photo</option>
+        <option>Ephemera</option><option>Books</option><option>Watches</option><option>Memorabilia</option>
+        <option>Patches</option><option>Stereoview</option><option>Cards</option><option>COGS</option><option>Other</option>
+      </select>
+    </div>
+    <div class="tscroll" id="sales-table-wrap"></div>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div id="tab-dashboard" style="display:none">
+    <div id="dash-content"><div class="loading">Loading...</div></div>
+  </div>
+
+  <!-- TAXES -->
+  <div id="tab-taxes" style="display:none">
+    <div class="llc-note">LLC formation date: July 22, 2025 — sales before this date are flagged Pre-LLC and may need separate treatment on your mother's personal return. Confirm with your CPA.</div>
+    <div class="metrics" id="tax-metrics"></div>
+    <div class="tax-grid">
+      <div class="card">
+        <div class="section-title">Settings</div>
+        <div class="form-group" style="margin-bottom:10px"><label>Tax year</label>
+          <select id="t-year" onchange="renderTaxes()"><option>2025</option><option>2026</option></select>
+        </div>
+        <div class="form-group" style="margin-bottom:10px"><label>Filing status</label>
+          <select id="t-filing" onchange="renderTaxes()">
+            <option>Single</option><option>Married Filing Jointly</option><option>Head of Household</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom:10px"><label>Other income ($)</label>
+          <input id="t-other" type="number" value="0" oninput="renderTaxes()" placeholder="0">
+        </div>
+        <div class="form-group"><label>Your ownership % of LLC</label>
+          <input id="t-pct" type="number" value="50" min="1" max="100" oninput="renderTaxes()">
+        </div>
+        <p class="tax-note">Estimates only — consult a CPA. Inherited inventory and pre/post-LLC reporting should be confirmed with your accountant.</p>
+      </div>
+      <div class="card" id="tax-summary"></div>
+    </div>
+    <div class="card">
+      <div class="section-title">Pre-LLC vs post-LLC sales split</div>
+      <div id="era-table"></div>
+      <p class="tax-note" style="margin-top:8px">Pre-LLC sales (before July 22, 2025) were made under your mother's personal eBay account and likely report on her personal return.</p>
+    </div>
+    <div class="card">
+      <div class="section-title">Quarterly estimated payments (your share)</div>
+      <div id="quarterly-table"></div>
+      <p class="tax-note" style="margin-top:8px">Q1 Apr 15 · Q2 Jun 17 · Q3 Sep 16 · Q4 Jan 15 (next yr)</p>
+    </div>
+  </div>
+
+  <!-- SALES TAX -->
+  <div id="tab-salestax" style="display:none">
+    <div class="llc-note">Sales tax is only owed on non-eBay sales (Facebook Marketplace, PayPal, cash). eBay collects and remits as marketplace facilitator — report those as exempt. File even if you owe $0.</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+      <div class="card">
+        <div class="section-title" style="color:#0C447C">🌴 Florida — Brevard County (Palm Bay)</div>
+        <table style="width:100%;font-size:12px;border-collapse:collapse;margin-top:8px">
+          <thead><tr>
+            <th style="padding:6px 8px;border-bottom:1px solid #e0dfd7">Quarter</th>
+            <th style="padding:6px 8px;border-bottom:1px solid #e0dfd7">Period</th>
+            <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #e0dfd7">FB Sales</th>
+            <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #e0dfd7">Tax (7%)</th>
+            <th style="padding:6px 8px;border-bottom:1px solid #e0dfd7">Due</th>
+            <th style="text-align:center;padding:6px 8px;border-bottom:1px solid #e0dfd7">Status</th>
+          </tr></thead>
+          <tbody>
+            <tr><td style="padding:6px 8px;border-bottom:1px solid #f0eee8">Q3 2025</td><td style="padding:6px 8px;border-bottom:1px solid #f0eee8;color:#888780">Jul 22–Sep 30</td><td style="text-align:right;padding:6px 8px;border-bottom:1px solid #f0eee8">—</td><td style="text-align:right;padding:6px 8px;border-bottom:1px solid #f0eee8">$40.47</td><td style="padding:6px 8px;border-bottom:1px solid #f0eee8">Oct 20, 2025</td><td style="text-align:center;padding:6px 8px;border-bottom:1px solid #f0eee8"><span class="badge b-listed">PAID</span></td></tr>
+            <tr><td style="padding:6px 8px;border-bottom:1px solid #f0eee8">Q4 2025</td><td style="padding:6px 8px;border-bottom:1px solid #f0eee8;color:#888780">Oct–Dec 31</td><td style="text-align:right;padding:6px 8px;border-bottom:1px solid #f0eee8">$36.00</td><td style="text-align:right;padding:6px 8px;border-bottom:1px solid #f0eee8">$52.56</td><td style="padding:6px 8px;border-bottom:1px solid #f0eee8">Jan 20, 2026</td><td style="text-align:center;padding:6px 8px;border-bottom:1px solid #f0eee8"><span class="badge b-listed">PAID</span></td></tr>
+            <tr style="background:#FFF8E1"><td style="padding:6px 8px;border-bottom:1px solid #f0eee8"><strong>Q1 2026</strong></td><td style="padding:6px 8px;border-bottom:1px solid #f0eee8;color:#888780">Jan–Mar 31</td><td style="text-align:right;padding:6px 8px;border-bottom:1px solid #f0eee8"><input id="fl-q1-sales" type="number" step="0.01" placeholder="0.00" oninput="calcSalesTax()" style="width:70px;font-size:12px;padding:3px 6px;border:1px solid #d3d1c7;border-radius:4px;text-align:right"></td><td style="text-align:right;padding:6px 8px;border-bottom:1px solid #f0eee8;font-weight:500" id="fl-q1-tax">$0.00</td><td style="padding:6px 8px;border-bottom:1px solid #f0eee8"><strong style="color:#A32D2D">Apr 20, 2026</strong></td><td style="text-align:center;padding:6px 8px;border-bottom:1px solid #f0eee8"><span class="badge b-unlisted">DUE SOON</span></td></tr>
+            <tr><td style="padding:6px 8px;border-bottom:1px solid #f0eee8">Q2 2026</td><td style="padding:6px 8px;border-bottom:1px solid #f0eee8;color:#888780">Apr–Jun 30</td><td style="text-align:right;padding:6px 8px;border-bottom:1px solid #f0eee8"><input id="fl-q2-sales" type="number" step="0.01" placeholder="0.00" oninput="calcSalesTax()" style="width:70px;font-size:12px;padding:3px 6px;border:1px solid #d3d1c7;border-radius:4px;text-align:right"></td><td style="text-align:right;padding:6px 8px;border-bottom:1px solid #f0eee8" id="fl-q2-tax">$0.00</td><td style="padding:6px 8px;border-bottom:1px solid #f0eee8">Jul 20, 2026</td><td style="text-align:center;padding:6px 8px;border-bottom:1px solid #f0eee8"><span class="badge b-unlisted">UPCOMING</span></td></tr>
+            <tr><td style="padding:6px 8px;border-bottom:1px solid #f0eee8">Q3 2026</td><td style="padding:6px 8px;border-bottom:1px solid #f0eee8;color:#888780">Jul–Sep 30</td><td style="text-align:right;padding:6px 8px;border-bottom:1px solid #f0eee8"><input id="fl-q3-sales" type="number" step="0.01" placeholder="0.00" oninput="calcSalesTax()" style="width:70px;font-size:12px;padding:3px 6px;border:1px solid #d3d1c7;border-radius:4px;text-align:right"></td><td style="text-align:right;padding:6px 8px;border-bottom:1px solid #f0eee8" id="fl-q3-tax">$0.00</td><td style="padding:6px 8px;border-bottom:1px solid #f0eee8">Oct 20, 2026</td><td style="text-align:center;padding:6px 8px;border-bottom:1px solid #f0eee8"><span class="badge b-unlisted">UPCOMING</span></td></tr>
+            <tr><td style="padding:6px 8px">Q4 2026</td><td style="padding:6px 8px;color:#888780">Oct–Dec 31</td><td style="text-align:right;padding:6px 8px"><input id="fl-q4-sales" type="number" step="0.01" placeholder="0.00" oninput="calcSalesTax()" style="width:70px;font-size:12px;padding:3px 6px;border:1px solid #d3d1c7;border-radius:4px;text-align:right"></td><td style="text-align:right;padding:6px 8px" id="fl-q4-tax">$0.00</td><td style="padding:6px 8px">Jan 20, 2027</td><td style="text-align:center;padding:6px 8px"><span class="badge b-unlisted">UPCOMING</span></td></tr>
+          </tbody>
+        </table>
+        <div style="margin-top:10px;font-size:11px;color:#888780">Certificate: 15-8019925061-7 · Rate: 7% · DR-15 · floridarevenue.com</div>
+      </div>
+      <div class="card">
+        <div class="section-title" style="color:#3C3489">🌲 North Carolina — Moore County (Pinehurst)</div>
+        <table style="width:100%;font-size:12px;border-collapse:collapse;margin-top:8px">
+          <thead><tr>
+            <th style="padding:6px 8px;border-bottom:1px solid #e0dfd7">Quarter</th>
+            <th style="padding:6px 8px;border-bottom:1px solid #e0dfd7">Period</th>
+            <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #e0dfd7">FB Sales</th>
+            <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #e0dfd7">Tax (7%)</th>
+            <th style="padding:6px 8px;border-bottom:1px solid #e0dfd7">Due</th>
+            <th style="text-align:center;padding:6px 8px;border-bottom:1px solid #e0dfd7">Status</th>
+          </tr></thead>
+          <tbody>
+            <tr style="background:#FCEAEA"><td style="padding:6px 8px;border-bottom:1px solid #f0eee8"><strong>Q3 2025</strong></td><td style="padding:6px 8px;border-bottom:1px solid #f0eee8;color:#888780">Jul 22–Sep 30</td><td style="text-align:right;padding:6px 8px;border-bottom:1px solid #f0eee8">$0.00</td><td style="text-align:right;padding:6px 8px;border-bottom:1px solid #f0eee8">$0.00</td><td style="padding:6px 8px;border-bottom:1px solid #f0eee8;color:#A32D2D"><strong>FILE $0 RETURN</strong></td><td style="text-align:center;padding:6px 8px;border-bottom:1px solid #f0eee8"><span class="badge b-sold">OVERDUE</span></td></tr>
+            <tr style="background:#FCEAEA"><td style="padding:6px 8px;border-bottom:1px solid #f0eee8"><strong>Q4 2025</strong></td><td style="padding:6px 8px;border-bottom:1px solid #f0eee8;color:#888780">Oct–Dec 31</td><td style="text-align:right;padding:6px 8px;border-bottom:1px solid #f0eee8">$0.00</td><td style="text-align:right;padding:6px 8px;border-bottom:1px solid #f0eee8">$0.00</td><td style="padding:6px 8px;border-bottom:1px solid #f0eee8;color:#A32D2D"><strong>FILE $0 RETURN</strong></td><td style="text-align:center;padding:6px 8px;border-bottom:1px solid #f0eee8"><span class="badge b-sold">OVERDUE</span></td></tr>
+            <tr style="background:#FFF8E1"><td style="padding:6px 8px;border-bottom:1px solid #f0eee8"><strong>Q1 2026</strong></td><td style="padding:6px 8px;border-bottom:1px solid #f0eee8;color:#888780">Jan–Mar 31</td><td style="text-align:right;padding:6px 8px;border-bottom:1px solid #f0eee8"><input id="nc-q1-sales" type="number" step="0.01" placeholder="0.00" oninput="calcSalesTax()" style="width:70px;font-size:12px;padding:3px 6px;border:1px solid #d3d1c7;border-radius:4px;text-align:right"></td><td style="text-align:right;padding:6px 8px;border-bottom:1px solid #f0eee8;font-weight:500" id="nc-q1-tax">$0.00</td><td style="padding:6px 8px;border-bottom:1px solid #f0eee8"><strong style="color:#A32D2D">Apr 20, 2026</strong></td><td style="text-align:center;padding:6px 8px;border-bottom:1px solid #f0eee8"><span class="badge b-unlisted">DUE SOON</span></td></tr>
+            <tr><td style="padding:6px 8px;border-bottom:1px solid #f0eee8">Q2 2026</td><td style="padding:6px 8px;border-bottom:1px solid #f0eee8;color:#888780">Apr–Jun 30</td><td style="text-align:right;padding:6px 8px;border-bottom:1px solid #f0eee8"><input id="nc-q2-sales" type="number" step="0.01" placeholder="0.00" oninput="calcSalesTax()" style="width:70px;font-size:12px;padding:3px 6px;border:1px solid #d3d1c7;border-radius:4px;text-align:right"></td><td style="text-align:right;padding:6px 8px;border-bottom:1px solid #f0eee8" id="nc-q2-tax">$0.00</td><td style="padding:6px 8px;border-bottom:1px solid #f0eee8">Jul 20, 2026</td><td style="text-align:center;padding:6px 8px;border-bottom:1px solid #f0eee8"><span class="badge b-unlisted">UPCOMING</span></td></tr>
+            <tr><td style="padding:6px 8px;border-bottom:1px solid #f0eee8">Q3 2026</td><td style="padding:6px 8px;border-bottom:1px solid #f0eee8;color:#888780">Jul–Sep 30</td><td style="text-align:right;padding:6px 8px;border-bottom:1px solid #f0eee8"><input id="nc-q3-sales" type="number" step="0.01" placeholder="0.00" oninput="calcSalesTax()" style="width:70px;font-size:12px;padding:3px 6px;border:1px solid #d3d1c7;border-radius:4px;text-align:right"></td><td style="text-align:right;padding:6px 8px;border-bottom:1px solid #f0eee8" id="nc-q3-tax">$0.00</td><td style="padding:6px 8px;border-bottom:1px solid #f0eee8">Oct 20, 2026</td><td style="text-align:center;padding:6px 8px;border-bottom:1px solid #f0eee8"><span class="badge b-unlisted">UPCOMING</span></td></tr>
+            <tr><td style="padding:6px 8px">Q4 2026</td><td style="padding:6px 8px;color:#888780">Oct–Dec 31</td><td style="text-align:right;padding:6px 8px"><input id="nc-q4-sales" type="number" step="0.01" placeholder="0.00" oninput="calcSalesTax()" style="width:70px;font-size:12px;padding:3px 6px;border:1px solid #d3d1c7;border-radius:4px;text-align:right"></td><td style="text-align:right;padding:6px 8px" id="nc-q4-tax">$0.00</td><td style="padding:6px 8px">Jan 20, 2027</td><td style="text-align:center;padding:6px 8px"><span class="badge b-unlisted">UPCOMING</span></td></tr>
+          </tbody>
+        </table>
+        <div style="margin-top:10px;font-size:11px;color:#888780">Account ID: 601689127 · Rate: 7% · eservices.dor.ncdor.gov</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="section-title">What counts as taxable?</div>
+      <table style="width:100%;font-size:12px;border-collapse:collapse;margin-top:8px">
+        <thead><tr>
+          <th style="padding:6px 8px;border-bottom:1px solid #e0dfd7">Sale Type</th>
+          <th style="text-align:center;padding:6px 8px;border-bottom:1px solid #e0dfd7">FL Taxable?</th>
+          <th style="text-align:center;padding:6px 8px;border-bottom:1px solid #e0dfd7">NC Taxable?</th>
+          <th style="padding:6px 8px;border-bottom:1px solid #e0dfd7">Notes</th>
+        </tr></thead>
+        <tbody>
+          <tr><td style="padding:6px 8px;border-bottom:1px solid #f0eee8">eBay sales</td><td style="padding:6px 8px;border-bottom:1px solid #f0eee8;text-align:center"><span style="color:#0F6E56;font-weight:500">Exempt</span></td><td style="padding:6px 8px;border-bottom:1px solid #f0eee8;text-align:center"><span style="color:#0F6E56;font-weight:500">Exempt</span></td><td style="padding:6px 8px;border-bottom:1px solid #f0eee8;color:#888780">eBay remits as marketplace facilitator</td></tr>
+          <tr><td style="padding:6px 8px;border-bottom:1px solid #f0eee8">Facebook Marketplace</td><td style="padding:6px 8px;border-bottom:1px solid #f0eee8;text-align:center"><span style="color:#A32D2D;font-weight:500">Taxable</span></td><td style="padding:6px 8px;border-bottom:1px solid #f0eee8;text-align:center"><span style="color:#A32D2D;font-weight:500">Taxable</span></td><td style="padding:6px 8px;border-bottom:1px solid #f0eee8;color:#888780">You collected — you remit</td></tr>
+          <tr><td style="padding:6px 8px;border-bottom:1px solid #f0eee8">PayPal / Venmo direct</td><td style="padding:6px 8px;border-bottom:1px solid #f0eee8;text-align:center"><span style="color:#A32D2D;font-weight:500">Taxable</span></td><td style="padding:6px 8px;border-bottom:1px solid #f0eee8;text-align:center"><span style="color:#A32D2D;font-weight:500">Taxable</span></td><td style="padding:6px 8px;border-bottom:1px solid #f0eee8;color:#888780">You collected — you remit</td></tr>
+          <tr><td style="padding:6px 8px">Cash sales</td><td style="padding:6px 8px;text-align:center"><span style="color:#A32D2D;font-weight:500">Taxable</span></td><td style="padding:6px 8px;text-align:center"><span style="color:#A32D2D;font-weight:500">Taxable</span></td><td style="padding:6px 8px;color:#888780">Log all cash sales in tracker</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- EXPENSES -->
+  <div id="tab-expenses" style="display:none">
+    <div class="metrics" id="exp-metrics"><div class="loading">Loading...</div></div>
+    <div class="card">
+      <div class="section-title">Log Expense</div>
+      <div class="form-row">
+        <div class="form-group"><label>Description</label>
+          <input id="exp-desc" placeholder="e.g. Consignment payout — John Smith (Tiffany lamp)">
+        </div>
+        <div class="form-group"><label>Category</label>
+          <select id="exp-cat">
+            <option>Consignment Payout</option><option>Shipping Supplies</option><option>eBay Fees</option>
+            <option>Shipping Labels</option><option>Photography</option><option>Storage</option>
+            <option>Mileage</option><option>Other</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Amount ($)</label>
+          <input id="exp-amount" type="number" step="0.01" placeholder="0.00">
+        </div>
+        <div class="form-group"><label>Date</label>
+          <input id="exp-date" type="date">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Related Order ID (optional)</label>
+          <input id="exp-orderid" placeholder="eBay order number if applicable">
+        </div>
+        <div class="form-group"><label>Notes</label>
+          <input id="exp-notes" placeholder="Any extra details">
+        </div>
+        <div class="form-group" style="justify-content:flex-end;padding-top:16px">
+          <button class="btn btn-primary" onclick="addExpense()">Log Expense</button>
+        </div>
+      </div>
+    </div>
+    <div class="tscroll" id="exp-table-wrap"></div>
+  </div>
+
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script>
+firebase.initializeApp({
+  apiKey:"AIzaSyAWXzKYo8gwXjub9aSMCqMzkN35dzq6o34",
+  authDomain:"ebay-tracker-88f4d.firebaseapp.com",
+  projectId:"ebay-tracker-88f4d",
+  storageBucket:"ebay-tracker-88f4d.firebasestorage.app",
+  messagingSenderId:"966740510147",
+  appId:"1:966740510147:web:cbc938cc7c93c9120aa976"
+});
+const db = firebase.firestore();
+const LLC_DATE = '2025-07-22';
+let inventory = [], sales = [], expenses = [];
+const sdot = document.getElementById('sdot');
+const sstatus = document.getElementById('sstatus');
+const TABS = ['inventory','sales','dashboard','taxes','salestax','expenses'];
+
+function setSync(s,m){sdot.className='sync-dot'+(s==='syncing'?' syncing':s==='error'?' error':'');sstatus.textContent=m;}
+function fmt(n){return '$'+Number(n||0).toFixed(2);}
+function eraFromDate(d){return d&&d>=LLC_DATE?'post':'pre';}
+function activeTab(){const a=document.querySelector('.tab.active');if(!a)return'inventory';const m=(a.getAttribute('onclick')||'').match(/showTab\('(\w+)'\)/);return m?m[1]:'inventory';}
+
+function showTab(t) {
+  TABS.forEach(x => { document.getElementById('tab-'+x).style.display = x===t?'block':'none'; });
+  document.querySelectorAll('.tab').forEach((el,i) => { el.classList.toggle('active', TABS[i]===t); });
+  if(t==='inventory') renderInventory();
+  else if(t==='sales'){populateSaleSelect();renderSales();}
+  else if(t==='dashboard') renderDashboard();
+  else if(t==='taxes') renderTaxes();
+  else if(t==='expenses') renderExpenses();
+}
+
+// Firebase listeners
+db.collection('inventory').onSnapshot(snap=>{
+  inventory=snap.docs.map(d=>({id:d.id,...d.data()}));
+  setSync('ok','Live · Winters Memory Market LLC');
+  const t=activeTab();
+  if(t==='inventory')renderInventory();
+  else if(t==='sales'){populateSaleSelect();renderSales();}
+  else if(t==='dashboard')renderDashboard();
+  else if(t==='taxes')renderTaxes();
+},()=>setSync('error','Connection error'));
+
+db.collection('sales').onSnapshot(snap=>{
+  sales=snap.docs.map(d=>({id:d.id,...d.data()}));
+  setSync('ok','Live · Winters Memory Market LLC');
+  const t=activeTab();
+  if(t==='sales'){populateSaleSelect();renderSales();}
+  else if(t==='dashboard')renderDashboard();
+  else if(t==='taxes')renderTaxes();
+  else if(t==='inventory')renderInventory();
+},()=>setSync('error','Connection error'));
+
+db.collection('expenses').onSnapshot(snap=>{
+  expenses=snap.docs.map(d=>({id:d.id,...d.data()}));
+  if(activeTab()==='expenses')renderExpenses();
+},()=>{});
+
+// ── SALES TAX ──
+function calcSalesTax(){
+  ['fl-q1','fl-q2','fl-q3','fl-q4','nc-q1','nc-q2','nc-q3','nc-q4'].forEach(id=>{
+    const inp=document.getElementById(id+'-sales');
+    const out=document.getElementById(id+'-tax');
+    if(inp&&out) out.textContent='$'+(((parseFloat(inp.value)||0)*0.07).toFixed(2));
+  });
+}
+
+// ── EXPENSES ──
+async function addExpense(){
+  const desc=document.getElementById('exp-desc').value.trim();
+  const cat=document.getElementById('exp-cat').value;
+  const amount=parseFloat(document.getElementById('exp-amount').value)||0;
+  const date=document.getElementById('exp-date').value;
+  const orderid=document.getElementById('exp-orderid').value.trim();
+  const notes=document.getElementById('exp-notes').value.trim();
+  if(!desc||!amount){alert('Enter a description and amount');return;}
+  const expId='exp_'+Date.now();
+  setSync('syncing','Saving...');
+  try {
+    await db.collection('expenses').doc(expId).set({id:expId,desc,cat,amount,date,orderid,notes});
+    ['exp-desc','exp-amount','exp-orderid','exp-notes'].forEach(fid=>document.getElementById(fid).value='');
+    setSync('ok','Live · Winters Memory Market LLC');
+  } catch(e) {
+    setSync('error','Error saving: '+e.message);
+    alert('Error saving expense: '+e.message);
+  }
+}
+
+async function deleteExpense(id){
+  if(!confirm('Delete this expense?'))return;
+  setSync('syncing','Deleting...');
+  await db.collection('expenses').doc(id).delete();
+}
+
+function renderExpenses(){
+  const total=expenses.reduce((a,b)=>a+(b.amount||0),0);
+  const consignTotal=expenses.filter(e=>e.cat==='Consignment Payout').reduce((a,b)=>a+(b.amount||0),0);
+  const bycat={};expenses.forEach(e=>{bycat[e.cat]=(bycat[e.cat]||0)+e.amount;});
+  const topcat=Object.entries(bycat).sort((a,b)=>b[1]-a[1])[0];
+  document.getElementById('exp-metrics').innerHTML=`
+    <div class="metric"><div class="metric-label">Total expenses</div><div class="metric-value">${fmt(total)}</div></div>
+    <div class="metric"><div class="metric-label">Consignment payouts</div><div class="metric-value red">${fmt(consignTotal)}</div></div>
+    <div class="metric"><div class="metric-label">Count</div><div class="metric-value">${expenses.length}</div></div>
+    <div class="metric"><div class="metric-label">Top category</div><div class="metric-value" style="font-size:13px">${topcat?topcat[0]:'—'}</div></div>`;
+  const wrap=document.getElementById('exp-table-wrap');
+  if(!expenses.length){wrap.innerHTML='<div class="empty">No expenses logged yet. Use the form above to log your first expense.</div>';return;}
+  const sorted=[...expenses].sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  wrap.innerHTML=`<table><thead><tr><th>Description</th><th>Category</th><th>Amount</th><th>Date</th><th>Order ID</th><th>Notes</th><th></th></tr></thead><tbody>${sorted.map(e=>`<tr>
+    <td>${e.desc}</td>
+    <td><span class="badge ${e.cat==='Consignment Payout'?'b-consignment':'b-unlisted'}">${e.cat}</span></td>
+    <td class="red" style="font-weight:500">${fmt(e.amount)}</td>
+    <td style="color:#888780">${e.date||'—'}</td>
+    <td style="color:#888780">${e.orderid||'—'}</td>
+    <td style="color:#888780;font-size:11px">${e.notes||'—'}</td>
+    <td><button class="del-btn" onclick="deleteExpense('${e.id}')">✕</button></td>
+  </tr>`).join('')}</tbody></table>`;
+}
+
+// ── INVENTORY ──
+function getFilteredInv(){
+  const cat=document.getElementById('f-cat').value;
+  const loc=document.getElementById('f-loc').value;
+  const src=document.getElementById('f-src').value;
+  const era=document.getElementById('f-era').value;
+  const status=document.getElementById('f-status').value;
+  const q=(document.getElementById('inv-search').value||'').toLowerCase().trim();
+  return inventory.filter(x=>
+    x.status!=='Sold'&&
+    (!cat||x.category===cat)&&(!loc||x.location===loc)&&
+    (!src||x.source===src)&&(!era||x.era===era)&&
+    (!status||x.status===status)&&
+    (!q||[x.name,x.sku,x.notes,x.purchaseSource,x.orderId,x.dims,x.condition].some(f=>f&&f.toLowerCase().includes(q)))
+  );
+}
+
+function renderInventory(){
+  const items=getFilteredInv();
+  const unsold=inventory.filter(x=>x.status!=='Sold');
+  const listed=inventory.filter(x=>x.status==='Listed');
+  const sold=inventory.filter(x=>x.status==='Sold');
+  document.getElementById('inv-metrics').innerHTML=`
+    <div class="metric"><div class="metric-label">Unsold items</div><div class="metric-value">${unsold.length}</div></div>
+    <div class="metric"><div class="metric-label">Listed</div><div class="metric-value">${listed.length}</div></div>
+    <div class="metric"><div class="metric-label">Sold</div><div class="metric-value">${sold.length}</div></div>
+    <div class="metric"><div class="metric-label">Inventory COGS</div><div class="metric-value">${fmt(unsold.reduce((a,b)=>a+b.cost,0))}</div></div>
+    <div class="metric"><div class="metric-label">Listed value</div><div class="metric-value">${fmt(listed.reduce((a,b)=>a+b.list,0))}</div></div>`;
+  const wrap=document.getElementById('inv-table-wrap');
+  if(!items.length){wrap.innerHTML='<div class="empty">'+(inventory.length?'No items match filters.':'No inventory yet — add your first item above.')+'</div>';return;}
+  window._invMap={};items.forEach(it=>{window._invMap[it.id]=it;});
+  wrap.innerHTML=`
+  <div id="inv-popup" style="display:none;margin-bottom:12px;background:#fff;border:1px solid #e0dfd7;border-radius:12px;padding:1rem 1.25rem">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div style="font-size:13px;font-weight:500">Edit item</div>
+      <button onclick="document.getElementById('inv-popup').style.display='none'" style="background:none;border:none;cursor:pointer;font-size:13px;color:#888780">close ✕</button>
+    </div>
+    <input type="hidden" id="edit-id">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-bottom:10px">
+      <div style="display:flex;flex-direction:column;gap:3px"><label style="font-size:11px;color:#888780">Item name</label><input id="edit-name" style="font-size:13px;padding:7px 10px;border:1px solid #d3d1c7;border-radius:8px"></div>
+      <div style="display:flex;flex-direction:column;gap:3px"><label style="font-size:11px;color:#888780">SKU</label><input id="edit-sku" style="font-size:13px;padding:7px 10px;border:1px solid #d3d1c7;border-radius:8px"></div>
+      <div style="display:flex;flex-direction:column;gap:3px"><label style="font-size:11px;color:#888780">Category</label>
+        <select id="edit-cat">
+<option>Advertising</option>
+<option>Art</option>
+<option>Automotive & Aviation</option>
+<option>Books & Magazines</option>
+<option>Ceramics & Glassware</option>
+<option>Christmas & Halloween</option>
+<option>Clothing & Textiles</option>
+<option>Collectibles</option>
+<option>Comics & Pulps</option>
+<option>Crafts & Patterns</option>
+<option>Disasteriana</option>
+<option>Disneyiana</option>
+<option>Dolls & Stuffed Animals</option>
+<option>Entertainment Memorabilia</option>
+<option>Ephemera & Trade Cards</option>
+<option>Equestrian</option>
+<option>Farming & Equipment</option>
+<option>Golf</option>
+<option>Housewares & Tins</option>
+<option>Hunting & Outdoors</option>
+<option>Jewelry & Pins</option>
+<option>Militaria</option>
+<option>Movie & Music Posters</option>
+<option>Music (Records & Cassettes)</option>
+<option>Photography & Snapshots</option>
+<option>Political & Presidential</option>
+<option>Post Cards</option>
+<option>Railroadiana & Trains</option>
+<option>Souvenirs</option>
+<option>Sports Memorabilia</option>
+<option>Stamps & Postal History</option>
+<option>Stereoviews</option>
+<option>Tobacciana</option>
+<option>Toys & Games</option>
+<option>Video Games</option>
+<option>Other</option>
+</select>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:3px"><label style="font-size:11px;color:#888780">Condition</label>
+        <select id="edit-cond" style="font-size:13px;padding:7px 10px;border:1px solid #d3d1c7;border-radius:8px">
+          <option>NWT</option><option>NWOT</option><option>Excellent</option><option>Very Good</option><option>Good</option><option>Fair</option><option>Poor</option><option>Parts/As-Is</option>
+        </select>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:3px"><label style="font-size:11px;color:#888780">Source</label>
+        <select id="edit-source" style="font-size:13px;padding:7px 10px;border:1px solid #d3d1c7;border-radius:8px"><option>Inherited</option><option>Purchased</option><option>Consignment</option></select>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:3px"><label style="font-size:11px;color:#888780">Era</label>
+        <select id="edit-era" style="font-size:13px;padding:7px 10px;border:1px solid #d3d1c7;border-radius:8px"><option value="pre">Pre-LLC</option><option value="post">Post-LLC</option></select>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:3px"><label style="font-size:11px;color:#888780">Location</label>
+        <select id="edit-loc" style="font-size:13px;padding:7px 10px;border:1px solid #d3d1c7;border-radius:8px"><option>NC</option><option>FL</option></select>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:3px"><label style="font-size:11px;color:#888780">Status</label>
+        <select id="edit-status" style="font-size:13px;padding:7px 10px;border:1px solid #d3d1c7;border-radius:8px"><option>Unlisted</option><option>Listed</option><option>Sold</option></select>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:3px"><label style="font-size:11px;color:#888780">Cost ($)</label><input id="edit-cost" type="number" step="0.01" style="font-size:13px;padding:7px 10px;border:1px solid #d3d1c7;border-radius:8px"></div>
+      <div style="display:flex;flex-direction:column;gap:3px"><label style="font-size:11px;color:#888780">List price ($)</label><input id="edit-list" type="number" step="0.01" style="font-size:13px;padding:7px 10px;border:1px solid #d3d1c7;border-radius:8px"></div>
+      <div style="display:flex;flex-direction:column;gap:3px"><label style="font-size:11px;color:#888780">Weight (oz)</label><input id="edit-weight" style="font-size:13px;padding:7px 10px;border:1px solid #d3d1c7;border-radius:8px"></div>
+      <div style="display:flex;flex-direction:column;gap:3px"><label style="font-size:11px;color:#888780">Dims</label><input id="edit-dims" style="font-size:13px;padding:7px 10px;border:1px solid #d3d1c7;border-radius:8px"></div>
+      <div style="display:flex;flex-direction:column;gap:3px"><label style="font-size:11px;color:#888780">Date acquired</label><input id="edit-date" type="date" style="font-size:13px;padding:7px 10px;border:1px solid #d3d1c7;border-radius:8px"></div>
+      <div style="display:flex;flex-direction:column;gap:3px"><label style="font-size:11px;color:#888780">Place of purchase</label><input id="edit-purchase-source" style="font-size:13px;padding:7px 10px;border:1px solid #d3d1c7;border-radius:8px"></div>
+      <div style="display:flex;flex-direction:column;gap:3px"><label style="font-size:11px;color:#888780">Order ID</label><input id="edit-orderid" style="font-size:13px;padding:7px 10px;border:1px solid #d3d1c7;border-radius:8px"></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:3px;margin-bottom:12px"><label style="font-size:11px;color:#888780">Notes</label><textarea id="edit-notes" rows="2" style="font-size:13px;padding:7px 10px;border:1px solid #d3d1c7;border-radius:8px;resize:vertical;width:100%"></textarea></div>
+    <div style="display:flex;gap:8px">
+      <button onclick="saveEditInv()" style="padding:8px 18px;border-radius:8px;font-size:13px;cursor:pointer;border:none;background:#1a1a18;color:#fff">Save changes</button>
+      <button onclick="document.getElementById('inv-popup').style.display='none'" style="padding:8px 18px;border-radius:8px;font-size:13px;cursor:pointer;border:1px solid #d3d1c7;background:#fff">Cancel</button>
+    </div>
+  </div>
+  <table><thead><tr>
+    <th>Item</th><th>SKU</th><th>Category</th><th>Condition</th><th>Source</th><th>Era</th><th>Location</th><th>Cost</th><th>List</th><th>Notes</th><th>Status</th><th>Date</th><th></th>
+  </tr></thead><tbody>${items.map(it=>`<tr>
+    <td>${it.name}</td>
+    <td style="color:#888780">${it.sku||'—'}</td>
+    <td>${it.category}</td><td>${it.condition}</td>
+    <td><span class="badge ${it.source==='Inherited'?'b-inherited':it.source==='Consignment'?'b-consignment':'b-purchased'}">${it.source}</span></td>
+    <td><span class="badge ${it.era==='pre'?'b-pre':'b-post'}">${it.era==='pre'?'Pre-LLC':'Post-LLC'}</span></td>
+    <td><span class="badge ${it.location==='FL'?'b-fl':'b-nc'}">${it.location}</span></td>
+    <td>${fmt(it.cost)}</td><td>${it.list?fmt(it.list):'—'}</td>
+    <td style="color:#185FA5;font-size:11px;cursor:pointer" onclick="editInv('${it.id}')">${it.notes?'+ view notes':'—'}</td>
+    <td><span class="badge b-${it.status.toLowerCase()}">${it.status}</span></td>
+    <td style="color:#888780">${it.date||'—'}</td>
+    <td style="white-space:nowrap">
+      ${it.status!=='Sold'?`<button class="del-btn" onclick="openSellPopup('${it.id}')" style="color:#0F6E56;margin-right:4px;font-weight:500">sell</button>`:''}
+      <button class="del-btn" onclick="editInv('${it.id}')" style="color:#185FA5;margin-right:4px">edit</button>
+      <button class="del-btn" onclick="deleteInv('${it.id}')">✕</button>
+    </td>
+  </tr>`).join('')}</tbody></table>`;
+}
+
+async function updateTrackerMeas(){
+  const l=document.getElementById('i-meas-l')?.value;
+  const w=document.getElementById('i-meas-w')?.value;
+  const h=document.getElementById('i-meas-h')?.value;
+  const parts=[l&&l+'"',w&&w+'"',h&&h+'"'].filter(Boolean);
+  const el=document.getElementById('i-meas-display');
+  if(el)el.textContent=parts.length?'→ '+parts.join(' × '):'';
+}
+
+function addInventory(){
+  const name=document.getElementById('i-name').value.trim();
+  if(!name){alert('Enter an item name');return;}
+  const category=document.getElementById('i-cat').value;
+  const eraVal=document.getElementById('i-era').value;
+  const dateVal=document.getElementById('i-date').value;
+  const era=dateVal?eraFromDate(dateVal):(eraVal==='post'?'post':'pre');
+  const id=Date.now()+'';
+  setSync('syncing','Saving...');
+  await db.collection('inventory').doc(id).set({
+    id,name,sku:document.getElementById('i-sku').value.trim(),category,
+    measurements:(()=>{const l=document.getElementById('i-meas-l')?.value,w=document.getElementById('i-meas-w')?.value,h=document.getElementById('i-meas-h')?.value;const parts=[l&&l+'"',w&&w+'"',h&&h+'"'].filter(Boolean);return parts.join(' × ');})(),
+    condition:document.getElementById('i-cond').value,source:document.getElementById('i-source').value,
+    era,location:document.getElementById('i-loc').value,
+    cost:parseFloat(document.getElementById('i-cost').value)||0,
+    list:parseFloat(document.getElementById('i-list').value)||0,
+    status:document.getElementById('i-status').value,date:dateVal,
+    weight:document.getElementById('i-weight').value.trim(),dims:document.getElementById('i-dims').value.trim(),
+    purchaseSource:document.getElementById('i-purchase-source').value.trim(),
+    orderId:document.getElementById('i-orderid').value.trim(),
+    notes:document.getElementById('i-notes').value.trim(),
+    ebayUrl:document.getElementById('i-ebay-url')?.value.trim()||''
+  });
+  ['i-name','i-sku','i-cost','i-list','i-weight','i-dims','i-purchase-source','i-orderid','i-notes','i-meas-l','i-meas-w','i-meas-h','i-ebay-url'].forEach(x=>{const el=document.getElementById(x);if(el)el.value='';});
+document.getElementById('i-meas-display').textContent='';
+}
+
+async function deleteInv(id){
+  if(!confirm('Delete this item?'))return;
+  setSync('syncing','Deleting...');
+  await db.collection('inventory').doc(id).delete();
+}
+
+function editInv(id){
+  const it=window._invMap[id];if(!it)return;
+  document.getElementById('edit-id').value=id;
+  document.getElementById('edit-name').value=it.name||'';
+  document.getElementById('edit-sku').value=it.sku||'';
+  document.getElementById('edit-cat').value=it.category||'Advertising';
+  document.getElementById('edit-cond').value=it.condition||'Good';
+  document.getElementById('edit-source').value=it.source||'Purchased';
+  document.getElementById('edit-era').value=it.era||'pre';
+  document.getElementById('edit-loc').value=it.location||'NC';
+  document.getElementById('edit-status').value=it.status||'Unlisted';
+  document.getElementById('edit-cost').value=it.cost||'';
+  document.getElementById('edit-list').value=it.list||'';
+  document.getElementById('edit-weight').value=it.weight||'';
+  // measurements stored as combined string
+  document.getElementById('edit-measurements').value=it.measurements||'';
+  document.getElementById('edit-ebay-url').value=it.ebayUrl||'';
+  document.getElementById('edit-dims').value=it.dims||'';
+  document.getElementById('edit-date').value=it.date||'';
+  document.getElementById('edit-purchase-source').value=it.purchaseSource||'';
+  document.getElementById('edit-orderid').value=it.orderId||'';
+  document.getElementById('edit-notes').value=it.notes||'';
+  document.getElementById('inv-popup').style.display='block';
+  document.getElementById('inv-popup').scrollIntoView({behavior:'smooth'});
+}
+
+async function saveEditInv(){
+  const id=document.getElementById('edit-id').value;
+  const it=window._invMap[id];if(!it)return;
+  setSync('syncing','Saving...');
+  await db.collection('inventory').doc(id).set({...it,
+    name:document.getElementById('edit-name').value.trim(),
+    sku:document.getElementById('edit-sku').value.trim(),
+    category:document.getElementById('edit-cat').value,
+    condition:document.getElementById('edit-cond').value,
+    source:document.getElementById('edit-source').value,
+    era:document.getElementById('edit-era').value,
+    location:document.getElementById('edit-loc').value,
+    status:document.getElementById('edit-status').value,
+    cost:parseFloat(document.getElementById('edit-cost').value)||0,
+    list:parseFloat(document.getElementById('edit-list').value)||0,
+    weight:document.getElementById('edit-weight').value.trim(),
+    dims:document.getElementById('edit-dims').value.trim(),
+    date:document.getElementById('edit-date').value,
+    purchaseSource:document.getElementById('edit-purchase-source').value.trim(),
+    orderId:document.getElementById('edit-orderid').value.trim(),
+    notes:document.getElementById('edit-notes').value.trim()
+  });
+  document.getElementById('inv-popup').style.display='none';
+}
+
+// ── SELL POPUP ──
+function openSellPopup(itemId){
+  const item=inventory.find(x=>x.id===itemId);if(!item)return;
+  const existing=document.getElementById('sell-popup-overlay');if(existing)existing.remove();
+  const today=new Date().toISOString().split('T')[0];
+  const overlay=document.createElement('div');
+  overlay.id='sell-popup-overlay';
+  overlay.style.cssText='position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.4);z-index:1000;display:flex;align-items:center;justify-content:center;padding:1rem';
+  overlay.innerHTML=`
+    <div style="background:#fff;border-radius:16px;padding:1.5rem;max-width:560px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.2)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+        <div style="font-size:15px;font-weight:500">Record Sale</div>
+        <button onclick="document.getElementById('sell-popup-overlay').remove()" style="background:none;border:none;cursor:pointer;font-size:16px;color:#888780">✕</button>
+      </div>
+      <div style="font-size:12px;color:#888780;margin-bottom:1rem;padding:8px 10px;background:#f5f4f0;border-radius:8px;line-height:1.5">
+        <strong style="color:#1a1a18">${item.name.substring(0,80)}</strong><br>
+        ${item.category} · ${item.condition} · ${item.location} · Cost: ${fmt(item.cost)}
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+        <div style="display:flex;flex-direction:column;gap:3px"><label style="font-size:11px;color:#888780">Sale price ($) *</label><input id="sp-price" type="number" step="0.01" placeholder="0.00" style="font-size:13px;padding:7px 10px;border:1px solid #d3d1c7;border-radius:8px;width:100%"></div>
+        <div style="display:flex;flex-direction:column;gap:3px"><label style="font-size:11px;color:#888780">Platform fees ($)</label><input id="sp-fees" type="number" step="0.01" placeholder="0.00" style="font-size:13px;padding:7px 10px;border:1px solid #d3d1c7;border-radius:8px;width:100%"></div>
+        <div style="display:flex;flex-direction:column;gap:3px"><label style="font-size:11px;color:#888780">Shipping cost ($)</label><input id="sp-ship" type="number" step="0.01" placeholder="0.00" style="font-size:13px;padding:7px 10px;border:1px solid #d3d1c7;border-radius:8px;width:100%"></div>
+        <div style="display:flex;flex-direction:column;gap:3px"><label style="font-size:11px;color:#888780">Sale date *</label><input id="sp-date" type="date" value="${today}" style="font-size:13px;padding:7px 10px;border:1px solid #d3d1c7;border-radius:8px;width:100%"></div>
+        <div style="display:flex;flex-direction:column;gap:3px"><label style="font-size:11px;color:#888780">Platform</label>
+          <select id="sp-plat" style="font-size:13px;padding:7px 10px;border:1px solid #d3d1c7;border-radius:8px;background:#fff;width:100%">
+            <option>eBay</option><option>Facebook</option><option>Instagram</option><option>Etsy</option><option>Other</option>
+          </select>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:3px"><label style="font-size:11px;color:#888780">Ship from</label>
+          <select id="sp-loc" style="font-size:13px;padding:7px 10px;border:1px solid #d3d1c7;border-radius:8px;background:#fff;width:100%">
+            <option value="NC" ${item.location==='NC'?'selected':''}>NC</option>
+            <option value="FL" ${item.location==='FL'?'selected':''}>FL</option>
+          </select>
+        </div>
+      </div>
+      <div id="sp-profit-preview" style="font-size:12px;margin-bottom:12px;padding:6px 10px;background:#f5f4f0;border-radius:6px;display:none"></div>
+      <div style="display:flex;gap:8px">
+        <button onclick="recordSaleFromInv('${itemId}')" style="padding:8px 20px;border-radius:8px;font-size:13px;cursor:pointer;border:none;background:#1D9E75;color:#fff;font-weight:500">Confirm Sale</button>
+        <button onclick="document.getElementById('sell-popup-overlay').remove()" style="padding:8px 16px;border-radius:8px;font-size:13px;cursor:pointer;border:1px solid #d3d1c7;background:#fff">Cancel</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  ['sp-price','sp-fees','sp-ship'].forEach(id=>{
+    document.getElementById(id).addEventListener('input',()=>{
+      const price=parseFloat(document.getElementById('sp-price').value)||0;
+      const fees=parseFloat(document.getElementById('sp-fees').value)||0;
+      const ship=parseFloat(document.getElementById('sp-ship').value)||0;
+      if(price>0){
+        const profit=price-fees-ship-item.cost;
+        const el=document.getElementById('sp-profit-preview');
+        el.style.display='block';
+        el.style.color=profit>=0?'#0F6E56':'#A32D2D';
+        el.textContent=`Profit: ${fmt(profit)}  ·  Margin: ${((profit/price)*100).toFixed(1)}%  ·  COGS: ${fmt(item.cost)}`;
+      }
+    });
+  });
+  overlay.addEventListener('click',e=>{if(e.target===overlay)overlay.remove();});
+}
+
+async function recordSaleFromInv(itemId){
+  const item=inventory.find(x=>x.id===itemId);if(!item)return;
+  const price=parseFloat(document.getElementById('sp-price').value)||0;
+  const fees=parseFloat(document.getElementById('sp-fees').value)||0;
+  const ship=parseFloat(document.getElementById('sp-ship').value)||0;
+  const dateVal=document.getElementById('sp-date').value;
+  const plat=document.getElementById('sp-plat').value;
+  const loc=document.getElementById('sp-loc').value;
+  if(!price){alert('Please enter a sale price');return;}
+  if(!dateVal){alert('Please enter a sale date');return;}
+  const profit=price-fees-ship-item.cost;
+  const era=eraFromDate(dateVal);
+  const id=Date.now()+'';
+  setSync('syncing','Saving sale...');
+  try{
+    await db.collection('sales').doc(id).set({
+      id,itemId,itemName:item.name,category:item.category,source:item.source,era,
+      cogs:item.cost,price,fees,ship,profit,platform:plat,shipFrom:loc,date:dateVal,orderId:''
+    });
+    await db.collection('inventory').doc(itemId).update({status:'Sold'});
+    document.getElementById('sell-popup-overlay').remove();
+    setSync('ok','Sale recorded!');
+    setTimeout(()=>setSync('ok','Live · Winters Memory Market LLC'),2000);
+  }catch(e){setSync('error','Error: '+e.message);}
+}
+
+// ── SALES ──
+function populateSaleSelect(){
+  const sel=document.getElementById('s-item');
+  const avail=inventory.filter(x=>x.status!=='Sold');
+  sel.innerHTML=avail.length?avail.map(it=>`<option value="${it.id}">[${it.location}] ${it.name}</option>`).join(''):'<option value="">— add inventory first —</option>';
+}
+
+async function addSale(){
+  const itemId=document.getElementById('s-item').value;
+  const price=parseFloat(document.getElementById('s-price').value)||0;
+  const fees=parseFloat(document.getElementById('s-fees').value)||0;
+  const ship=parseFloat(document.getElementById('s-ship').value)||0;
+  const dateVal=document.getElementById('s-date').value;
+  if(!itemId||!price){alert('Select an item and enter sale price');return;}
+  const item=inventory.find(x=>x.id===itemId);
+  const profit=price-fees-ship-item.cost;
+  const era=dateVal?eraFromDate(dateVal):item.era;
+  const id=Date.now()+'';
+  setSync('syncing','Saving...');
+  await db.collection('sales').doc(id).set({
+    id,itemId,itemName:item.name,category:item.category,source:item.source,era,
+    cogs:item.cost,price,fees,ship,profit,
+    platform:document.getElementById('s-plat').value,
+    shipFrom:document.getElementById('s-loc').value,date:dateVal,orderId:''
+  });
+  await db.collection('inventory').doc(itemId).update({status:'Sold'});
+  ['s-price','s-fees','s-ship'].forEach(id=>document.getElementById(id).value='');
+}
+
+async function deleteSale(id){
+  if(!confirm('Delete this sale?'))return;
+  setSync('syncing','Deleting...');
+  const s=sales.find(x=>x.id===id);
+  if(s&&s.itemId){
+    const item=inventory.find(x=>x.id===s.itemId);
+    if(item) await db.collection('inventory').doc(item.id).update({status:'Listed'});
+  }
+  await db.collection('sales').doc(id).delete();
+}
+
+function renderSales(){
+  const q=(document.getElementById('sales-search')?.value||'').toLowerCase().trim();
+  const fPlat=document.getElementById('sf-plat')?.value||'';
+  const fLoc=document.getElementById('sf-loc')?.value||'';
+  const fEra=document.getElementById('sf-era')?.value||'';
+  const fCat=document.getElementById('sf-cat')?.value||'';
+  const filtered=sales.filter(s=>
+    (!fPlat||s.platform===fPlat)&&(!fLoc||s.shipFrom===fLoc)&&
+    (!fEra||s.era===fEra)&&(!fCat||s.category===fCat)&&
+    (!q||[s.itemName,s.category,s.platform,s.orderId].some(f=>f&&f.toLowerCase().includes(q)))
+  );
+  const rev=filtered.reduce((a,b)=>a+b.price,0);
+  const profit=filtered.reduce((a,b)=>a+b.profit,0);
+  const margin=rev?((profit/rev)*100):0;
+  const byPlat={};filtered.forEach(s=>{byPlat[s.platform]=(byPlat[s.platform]||0)+s.price;});
+  const topPlat=Object.entries(byPlat).sort((a,b)=>b[1]-a[1])[0];
+  document.getElementById('sales-metrics').innerHTML=`
+    <div class="metric"><div class="metric-label">Revenue</div><div class="metric-value">${fmt(rev)}</div></div>
+    <div class="metric"><div class="metric-label">Net profit</div><div class="metric-value ${profit>=0?'green':'red'}">${fmt(profit)}</div></div>
+    <div class="metric"><div class="metric-label">Margin</div><div class="metric-value ${margin>=0?'green':'red'}">${margin.toFixed(1)}%</div></div>
+    <div class="metric"><div class="metric-label">Sales count</div><div class="metric-value">${filtered.length}</div></div>
+    <div class="metric"><div class="metric-label">Top platform</div><div class="metric-value" style="font-size:13px">${topPlat?topPlat[0]:'—'}</div></div>
+    <div class="metric"><div class="metric-label">Avg sale</div><div class="metric-value">${filtered.length?fmt(rev/filtered.length):'—'}</div></div>`;
+  const wrap=document.getElementById('sales-table-wrap');
+  if(!filtered.length){wrap.innerHTML='<div class="empty">'+(sales.length?'No sales match filters.':'No sales recorded yet.')+'</div>';return;}
+  wrap.innerHTML=`<table><thead><tr>
+    <th>Item</th><th>Category</th><th>Platform</th><th>Ship from</th><th>Era</th><th>Price</th><th>Fees</th><th>Ship</th><th>COGS</th><th>Profit</th><th>Date</th><th></th>
+  </tr></thead><tbody>${filtered.map(s=>`<tr>
+    <td>${s.itemName}</td><td>${s.category||'—'}</td><td>${s.platform}</td>
+    <td><span class="badge ${s.shipFrom==='FL'?'b-fl':'b-nc'}">${s.shipFrom}</span></td>
+    <td><span class="badge ${s.era==='pre'?'b-pre':'b-post'}">${s.era==='pre'?'Pre':'Post'}</span></td>
+    <td>${fmt(s.price)}</td><td>${fmt(s.fees)}</td><td>${fmt(s.ship)}</td><td>${fmt(s.cogs)}</td>
+    <td style="color:${s.profit>=0?'#0F6E56':'#A32D2D'};font-weight:500">${fmt(s.profit)}</td>
+    <td style="color:#888780">${s.date||'—'}</td>
+    <td><button class="del-btn" onclick="deleteSale('${s.id}')">✕</button></td>
+  </tr>`).join('')}</tbody></table>`;
+}
+
+// ── DASHBOARD ──
+function renderDashboard(){
+  const rev=sales.reduce((a,b)=>a+b.price,0);
+  const profit=sales.reduce((a,b)=>a+b.profit,0);
+  const cogs=sales.reduce((a,b)=>a+b.cogs,0);
+  const invValue=inventory.filter(x=>x.status!=='Sold').reduce((a,b)=>a+b.cost,0);
+  const margin=rev?((profit/rev)*100):0;
+  const byPlatRev={};sales.forEach(s=>{byPlatRev[s.platform]=(byPlatRev[s.platform]||0)+s.price;});
+  const byMonth={};sales.filter(s=>s.date).forEach(s=>{const m=s.date.substring(0,7);byMonth[m]=(byMonth[m]||0)+s.price;});
+  const topMonths=Object.entries(byMonth).sort((a,b)=>b[1]-a[1]).slice(0,3);
+  document.getElementById('dash-content').innerHTML=`
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;margin-bottom:1.5rem">
+      <div class="metric"><div class="metric-label">Total revenue</div><div class="metric-value green">${fmt(rev)}</div></div>
+      <div class="metric"><div class="metric-label">Total profit</div><div class="metric-value ${profit>=0?'green':'red'}">${fmt(profit)}</div></div>
+      <div class="metric"><div class="metric-label">Overall margin</div><div class="metric-value">${margin.toFixed(1)}%</div></div>
+      <div class="metric"><div class="metric-label">Total COGS sold</div><div class="metric-value">${fmt(cogs)}</div></div>
+      <div class="metric"><div class="metric-label">Inventory value</div><div class="metric-value">${fmt(invValue)}</div></div>
+      <div class="metric"><div class="metric-label">Sales count</div><div class="metric-value">${sales.length}</div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+      <div class="card">
+        <div class="section-title">Revenue by platform</div>
+        ${Object.entries(byPlatRev).sort((a,b)=>b[1]-a[1]).map(([p,v])=>`
+          <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f0eee8;font-size:13px">
+            <span>${p}</span><span style="font-weight:500">${fmt(v)}</span>
+          </div>`).join('')}
+      </div>
+      <div class="card">
+        <div class="section-title">Top months by revenue</div>
+        ${topMonths.length?topMonths.map(([m,v])=>`
+          <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f0eee8;font-size:13px">
+            <span>${m}</span><span style="font-weight:500">${fmt(v)}</span>
+          </div>`).join(''):'<div style="color:#888780;font-size:13px">No sales data yet</div>'}
+      </div>
+    </div>`;
+}
+
+// ── TAXES ──
+function calcTax(agi,filing){
+  const brackets={
+    'Single':[[11925,0.10],[48475,0.12],[103350,0.22],[197300,0.24],[250525,0.32],[626350,0.35],[Infinity,0.37]],
+    'Married Filing Jointly':[[23850,0.10],[96950,0.12],[206700,0.22],[394600,0.24],[501050,0.32],[751600,0.35],[Infinity,0.37]],
+    'Head of Household':[[17000,0.10],[64850,0.12],[103350,0.22],[197300,0.24],[250500,0.32],[626350,0.35],[Infinity,0.37]]
+  };
+  const std={Single:15000,'Married Filing Jointly':30000,'Head of Household':22500};
+  const taxable=Math.max(0,agi-std[filing]);
+  let tax=0,prev=0;
+  for(const [limit,rate] of brackets[filing]){
+    if(taxable<=prev)break;
+    tax+=(Math.min(taxable,limit)-prev)*rate;
+    prev=limit;
+  }
+  return tax;
+}
+
+function renderTaxes(){
+  const year=document.getElementById('t-year').value;
+  const filing=document.getElementById('t-filing').value;
+  const otherIncome=parseFloat(document.getElementById('t-other').value)||0;
+  const pct=(parseFloat(document.getElementById('t-pct').value)||50)/100;
+  const yrSales=sales.filter(s=>s.date&&s.date.startsWith(year)&&s.era==='post');
+  const rev=yrSales.reduce((a,b)=>a+b.price,0);
+  const cogs=yrSales.reduce((a,b)=>a+b.cogs,0);
+  const fees=yrSales.reduce((a,b)=>a+b.fees,0);
+  const ship=yrSales.reduce((a,b)=>a+b.ship,0);
+  const expenses_total=expenses.filter(e=>e.date&&e.date.startsWith(year)).reduce((a,b)=>a+b.amount,0);
+  const netIncome=rev-cogs-fees-ship-expenses_total;
+  const yourShare=netIncome*pct;
+  const seTax=Math.max(0,yourShare*0.9235*0.153);
+  const seDeduct=seTax/2;
+  const qbi=Math.max(0,yourShare*0.2);
+  const agi=otherIncome+yourShare-seDeduct;
+  const incomeTax=calcTax(agi,filing);
+  const totalTax=incomeTax+seTax;
+  document.getElementById('tax-metrics').innerHTML=`
+    <div class="metric"><div class="metric-label">LLC net income (${year})</div><div class="metric-value">${fmt(netIncome)}</div></div>
+    <div class="metric"><div class="metric-label">Your share (${Math.round(pct*100)}%)</div><div class="metric-value">${fmt(yourShare)}</div></div>
+    <div class="metric"><div class="metric-label">SE tax</div><div class="metric-value red">${fmt(seTax)}</div></div>
+    <div class="metric"><div class="metric-label">Est. income tax</div><div class="metric-value red">${fmt(incomeTax)}</div></div>
+    <div class="metric"><div class="metric-label">Total tax est.</div><div class="metric-value red">${fmt(totalTax)}</div></div>`;
+  document.getElementById('tax-summary').innerHTML=`
+    <div class="section-title">Tax Summary — ${year}</div>
+    ${[['Revenue',fmt(rev)],['COGS','('+fmt(cogs)+')'],['eBay fees','('+fmt(fees)+')'],['Shipping','('+fmt(ship)+')'],['Other expenses','('+fmt(expenses_total)+')'],
+      ['LLC net income',fmt(netIncome)],['Your share',fmt(yourShare)],['SE deduction','('+fmt(seDeduct)+')'],['QBI deduction (20%)',fmt(qbi)],['Adjusted gross income',fmt(agi)],
+      ['Income tax est.',fmt(incomeTax)],['SE tax est.',fmt(seTax)]].map(([l,v])=>`
+        <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f0eee8;font-size:12px">
+          <span>${l}</span><span style="font-weight:500">${v}</span>
+        </div>`).join('')}
+    <div style="display:flex;justify-content:space-between;padding:8px 0;font-size:13px;font-weight:500;color:#A32D2D">
+      <span>Total estimated tax</span><span>${fmt(totalTax)}</span>
+    </div>
+    <p class="tax-note">Estimates only. Consult your CPA before filing.</p>`;
+  const pre=sales.filter(s=>s.era==='pre'&&s.date&&s.date.startsWith(year));
+  const post=sales.filter(s=>s.era==='post'&&s.date&&s.date.startsWith(year));
+  document.getElementById('era-table').innerHTML=`<table>
+    <thead><tr><th>Period</th><th>Orders</th><th>Revenue</th><th>COGS</th><th>Profit</th></tr></thead>
+    <tbody>
+      <tr><td><span class="badge b-pre">Pre-LLC</span></td><td>${pre.length}</td><td>${fmt(pre.reduce((a,b)=>a+b.price,0))}</td><td>${fmt(pre.reduce((a,b)=>a+b.cogs,0))}</td><td>${fmt(pre.reduce((a,b)=>a+b.profit,0))}</td></tr>
+      <tr><td><span class="badge b-post">Post-LLC</span></td><td>${post.length}</td><td>${fmt(post.reduce((a,b)=>a+b.price,0))}</td><td>${fmt(post.reduce((a,b)=>a+b.cogs,0))}</td><td>${fmt(post.reduce((a,b)=>a+b.profit,0))}</td></tr>
+    </tbody></table>`;
+  const qtr=[[`Q1 ${year}`,`${year}-01-01`,`${year}-03-31`],[`Q2 ${year}`,`${year}-04-01`,`${year}-06-30`],
+    [`Q3 ${year}`,`${year}-07-01`,`${year}-09-30`],[`Q4 ${year}`,`${year}-10-01`,`${year}-12-31`]];
+  const qtrRows=qtr.map(([label,start,end])=>{
+    const qs=sales.filter(s=>s.era==='post'&&s.date&&s.date>=start&&s.date<=end);
+    const qNet=qs.reduce((a,b)=>a+b.profit,0)*pct;
+    const qSE=Math.max(0,qNet*0.9235*0.153);
+    return`<tr><td>${label}</td><td>${fmt(qs.reduce((a,b)=>a+b.price,0))}</td><td>${fmt(qNet)}</td><td>${fmt(qSE)}</td></tr>`;
+  }).join('');
+  document.getElementById('quarterly-table').innerHTML=`<table>
+    <thead><tr><th>Quarter</th><th>Revenue</th><th>Your net</th><th>SE tax est.</th></tr></thead>
+    <tbody>${qtrRows}</tbody></table>`;
+}
+</script>
+</body>
+</html>
