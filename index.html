@@ -1,0 +1,1881 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>WMM Campaign Tool</title>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=DM+Mono:wght@300;400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink:#1a1410;--paper:#f5f0e8;--cream:#ede7d9;--amber:#c8903a;
+    --amber-light:#e8b86d;--muted:#7a6e5f;--border:#d4c9b5;
+    --card:#faf7f2;--success:#4a7c59;--info:#3a6b8b;--info-bg:#eef4f8;--info-border:#c5d5e0;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+  html,body{background:var(--paper);color:var(--ink);font-family:'DM Sans',sans-serif;font-weight:300;min-height:100vh;}
+
+  /* HEADER */
+  header{background:var(--ink);padding:13px 16px;display:flex;align-items:center;gap:11px;border-bottom:3px solid var(--amber);position:sticky;top:0;z-index:100;}
+  .logo-mark{width:32px;height:32px;background:var(--amber);display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-size:15px;color:var(--ink);font-weight:600;flex-shrink:0;}
+  header h1{font-family:'Playfair Display',serif;font-size:.92rem;color:var(--paper);font-weight:400;letter-spacing:.04em;}
+  header span{font-family:'DM Mono',monospace;font-size:.55rem;color:var(--amber-light);letter-spacing:.1em;text-transform:uppercase;display:block;margin-top:1px;}
+
+  /* TABS */
+  .tabs{display:flex;background:var(--cream);border-bottom:1px solid var(--border);position:sticky;top:58px;z-index:99;}
+  .tab-btn{flex:1;padding:12px 8px;border:none;background:transparent;font-family:'DM Mono',monospace;font-size:.58rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);cursor:pointer;border-bottom:3px solid transparent;transition:all .15s;}
+  .tab-btn.active{color:var(--ink);border-bottom-color:var(--amber);background:var(--paper);}
+  .tab-content{display:none;}.tab-content.active{display:block;}
+
+  /* SINGLE COLUMN LAYOUT */
+  .page{max-width:600px;margin:0 auto;padding:18px 14px 40px;}
+
+  /* SECTION HEADER */
+  .sec{font-family:'DM Mono',monospace;font-size:.57rem;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border);margin-top:20px;}
+  .sec:first-child{margin-top:0;}
+
+  /* DROP ZONE */
+  .drop-zone{border:2px dashed var(--border);background:var(--paper);padding:20px 14px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:14px;position:relative;border-radius:2px;}
+  .drop-zone.over{border-color:var(--amber);background:#fdf9f0;}
+  .drop-zone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+  .drop-zone .dz-icon{font-size:28px;opacity:.38;margin-bottom:6px;}
+  .drop-zone p{font-size:.8rem;color:var(--muted);line-height:1.5;}
+  .drop-zone p strong{color:var(--ink);font-weight:500;}
+
+  /* PHOTO GRID */
+  .thumb-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-bottom:14px;}
+  .thumb{aspect-ratio:1;position:relative;overflow:hidden;background:var(--cream);}
+  .thumb img{width:100%;height:100%;object-fit:cover;}
+  .thumb .rm{position:absolute;top:0;right:0;background:rgba(26,20,16,.85);color:#fff;border:none;cursor:pointer;width:22px;height:22px;font-size:11px;display:flex;align-items:center;justify-content:center;}
+  .thumb .tn{position:absolute;bottom:2px;left:3px;font-family:'DM Mono',monospace;font-size:8px;color:#fff;background:rgba(26,20,16,.6);padding:1px 3px;}
+
+  /* FORM */
+  .fg{margin-bottom:14px;}
+  label{display:block;font-size:.63rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:4px;font-family:'DM Mono',monospace;}
+  input[type="text"],input[type="number"],input[type="password"],select,textarea{
+    width:100%;background:var(--paper);border:1px solid var(--border);
+    padding:11px 12px;font-family:'DM Sans',sans-serif;font-size:16px;/* 16px prevents iOS zoom */
+    color:var(--ink);outline:none;transition:border-color .15s;-webkit-appearance:none;border-radius:0;
+  }
+  input:focus,select:focus,textarea:focus{border-color:var(--amber);}
+  textarea{resize:vertical;min-height:80px;line-height:1.5;}
+  .r2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+
+  /* PLATFORM TOGGLES */
+  .plat-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:16px;}
+  .plat-tog{display:flex;align-items:center;gap:8px;padding:12px 11px;border:1px solid var(--border);cursor:pointer;transition:all .15s;background:var(--paper);user-select:none;}
+  .plat-tog input{display:none;}
+  .plat-tog:has(input:checked){background:var(--ink);border-color:var(--ink);color:var(--paper);}
+  .plat-tog .pi{font-size:16px;}
+  .plat-tog .pn{font-size:.7rem;letter-spacing:.06em;text-transform:uppercase;font-family:'DM Mono',monospace;}
+
+  /* BUTTONS */
+  .btn-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px;}
+  .res-btn{background:var(--ink);border:none;padding:14px;font-family:'DM Mono',monospace;font-size:.65rem;letter-spacing:.08em;text-transform:uppercase;color:var(--paper);cursor:pointer;transition:background .2s;}
+  .res-btn:active{background:var(--info);}
+  .res-btn:disabled{opacity:.45;}
+  .gen-btn{background:var(--amber);border:none;padding:14px;font-family:'Playfair Display',serif;font-size:.95rem;color:var(--ink);cursor:pointer;transition:background .2s;}
+  .gen-btn:active{background:var(--amber-light);}
+  .gen-btn:disabled{opacity:.45;}
+  .full-btn{width:100%;margin-top:8px;}
+
+  /* OUTPUT AREA */
+  .output-area{margin-top:6px;}
+
+  /* EMPTY STATE */
+  .empty{text-align:center;padding:48px 20px;opacity:.35;}
+  .empty .ei{font-size:44px;margin-bottom:10px;}
+  .empty h2{font-family:'Playfair Display',serif;font-size:1.15rem;font-weight:400;margin-bottom:6px;}
+  .empty p{font-size:.78rem;color:var(--muted);line-height:1.6;}
+
+  /* LOADING */
+  .loading{text-align:center;padding:48px 20px;}
+  .dots{display:flex;gap:7px;justify-content:center;margin-bottom:14px;}
+  .dots span{width:8px;height:8px;background:var(--amber);border-radius:50%;animation:db 1.2s infinite;}
+  .dots span:nth-child(2){animation-delay:.2s}.dots span:nth-child(3){animation-delay:.4s}
+  @keyframes db{0%,80%,100%{transform:translateY(0);opacity:.4}40%{transform:translateY(-9px);opacity:1}}
+  .loading p{font-family:'Playfair Display',serif;font-size:.95rem;color:var(--muted);font-style:italic;}
+  .loading .sub{font-size:.68rem;color:var(--muted);font-style:normal;font-family:'DM Mono',monospace;letter-spacing:.06em;text-transform:uppercase;margin-top:4px;}
+
+  /* KNOWLEDGE NOTE */
+  .knowledge-note{background:var(--info-bg);border:1px solid var(--info-border);padding:10px 12px;margin-bottom:14px;display:flex;gap:9px;align-items:flex-start;}
+  .knowledge-note .kn-icon{font-size:13px;flex-shrink:0;margin-top:1px;}
+  .knowledge-note p{font-size:.72rem;color:#2a4a5e;line-height:1.55;font-family:'DM Mono',monospace;}
+
+  /* RESULTS HEADER */
+  .rh{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:16px;padding-bottom:12px;border-bottom:2px solid var(--ink);}
+  .rh h2{font-family:'Playfair Display',serif;font-size:1.2rem;font-weight:400;}
+  .rh .il{font-family:'DM Mono',monospace;font-size:.58rem;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;}
+
+  /* RESEARCH CARDS */
+  .research-card{background:var(--info-bg);border:1px solid var(--info-border);margin-bottom:12px;overflow:hidden;}
+  .research-card .rc-head{padding:10px 13px;background:#dde8ef;border-bottom:1px solid var(--info-border);display:flex;align-items:center;justify-content:space-between;}
+  .research-card .rc-label{font-family:'DM Mono',monospace;font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:#2a4a5e;}
+  .research-card .rc-body{padding:13px;}
+  .research-card .rc-body p{font-size:.85rem;line-height:1.75;white-space:pre-wrap;color:var(--ink);}
+
+  .title-display{font-family:'DM Mono',monospace;font-size:.78rem;background:var(--paper);border:1px solid var(--border);padding:10px 12px;line-height:1.5;color:var(--ink);margin-bottom:4px;word-break:break-all;}
+  .char-count{font-family:'DM Mono',monospace;font-size:.58rem;color:var(--muted);text-align:right;margin-bottom:8px;}
+  .char-count.over{color:#c0392b;font-weight:500;}
+
+  .value-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px;}
+  .val-box{background:var(--paper);border:1px solid var(--border);padding:10px;text-align:center;}
+  .val-box .vl{font-family:'DM Mono',monospace;font-size:.55rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:3px;}
+  .val-box .vv{font-family:'Playfair Display',serif;font-size:1.1rem;color:var(--ink);}
+
+  /* RESEARCH BANNER */
+  .research-banner{background:var(--ink);color:var(--paper);padding:11px 13px;display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:10px;}
+  .research-banner .rb-left{display:flex;align-items:center;gap:9px;min-width:0;}
+  .research-banner .rb-label{font-family:'DM Mono',monospace;font-size:.55rem;letter-spacing:.1em;text-transform:uppercase;color:var(--amber-light);}
+  .research-banner .rb-item{font-family:'Playfair Display',serif;font-size:.82rem;font-style:italic;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .view-res-btn{background:var(--amber);color:var(--ink);border:none;padding:7px 12px;font-family:'DM Mono',monospace;font-size:.57rem;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;white-space:nowrap;flex-shrink:0;}
+
+  /* CAMPAIGN CARDS */
+  .pc{background:var(--card);border:1px solid var(--border);margin-bottom:12px;overflow:hidden;}
+  .ph{display:flex;align-items:center;justify-content:space-between;padding:10px 13px;background:var(--cream);border-bottom:1px solid var(--border);}
+  .phl{display:flex;align-items:center;gap:7px;}
+  .phn{font-family:'DM Mono',monospace;font-size:.63rem;letter-spacing:.1em;text-transform:uppercase;}
+  .pb{padding:13px;}
+  .pb p{font-size:.85rem;line-height:1.75;white-space:pre-wrap;}
+
+  .cp-btn{background:var(--ink);color:var(--paper);border:none;cursor:pointer;padding:7px 12px;font-family:'DM Mono',monospace;font-size:.58rem;letter-spacing:.08em;text-transform:uppercase;transition:background .15s;}
+  .cp-btn:active{background:var(--amber);color:var(--ink);}
+  .cp-btn.ok{background:var(--success);}
+
+  /* SCHEDULE */
+  .sched-list{list-style:none;}
+  .sched-list li{padding:8px 0;border-bottom:1px solid var(--border);font-size:.8rem;display:flex;flex-wrap:wrap;gap:5px;align-items:center;}
+  .sched-list li:last-child{border-bottom:none;}
+  .d-badge{font-family:'DM Mono',monospace;font-size:.6rem;background:var(--ink);color:var(--paper);padding:3px 6px;}
+  .p-badge{font-family:'DM Mono',monospace;font-size:.6rem;background:var(--amber);color:var(--ink);padding:3px 6px;}
+  .sched-note{font-size:.78rem;color:var(--muted);flex-basis:100%;padding-left:2px;}
+
+  /* TIPS */
+  .tips-list{list-style:none;}
+  .tips-list li{padding:9px 0;border-bottom:1px solid var(--border);font-size:.84rem;line-height:1.65;display:flex;gap:9px;}
+  .tips-list li:last-child{border-bottom:none;}
+  .tn2{font-family:'Playfair Display',serif;font-size:1.1rem;color:var(--amber);font-style:italic;flex-shrink:0;line-height:1.4;}
+
+  .divider{border:none;border-top:2px solid var(--ink);margin:20px 0;}
+
+  /* ============ PHOTO EDITOR ============ */
+  .ed-sel{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;margin-bottom:16px;}
+  .es-th{aspect-ratio:1;position:relative;overflow:hidden;cursor:pointer;border:2px solid transparent;transition:border-color .15s;background:var(--cream);}
+  .es-th img{width:100%;height:100%;object-fit:cover;}
+  .es-th.act{border-color:var(--amber);}
+  .es-th .sn{position:absolute;bottom:2px;left:2px;font-family:'DM Mono',monospace;font-size:8px;color:#fff;background:rgba(26,20,16,.65);padding:1px 3px;}
+
+  /* SLIDERS */
+  .sl-row{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
+  .sl-row label{font-family:'DM Mono',monospace;font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);width:80px;flex-shrink:0;margin-bottom:0;}
+  .sl-row input[type=range]{flex:1;accent-color:var(--amber);cursor:pointer;height:20px;}
+  .sl-val{font-family:'DM Mono',monospace;font-size:.65rem;color:var(--muted);width:30px;text-align:right;flex-shrink:0;}
+  .rst{font-family:'DM Mono',monospace;font-size:.58rem;color:var(--muted);cursor:pointer;text-decoration:underline;margin-top:2px;text-align:right;padding:4px 0;}
+
+  .bg-tog{display:flex;align-items:center;gap:10px;padding:12px;background:var(--paper);border:1px solid var(--border);margin-bottom:10px;}
+  .bg-tog label{text-transform:uppercase;font-family:'DM Mono',monospace;font-size:.62rem;letter-spacing:.08em;color:var(--muted);margin-bottom:0;cursor:pointer;}
+  .bg-tog input[type=checkbox]{accent-color:var(--amber);width:16px;height:16px;cursor:pointer;flex-shrink:0;}
+  .bg-note{font-size:.7rem;color:var(--muted);line-height:1.55;margin-bottom:14px;}
+
+  .proc-btn{width:100%;background:var(--amber);border:none;padding:14px;font-family:'Playfair Display',serif;font-size:.95rem;color:var(--ink);cursor:pointer;transition:background .2s;}
+  .proc-btn:active{background:var(--amber-light);}
+
+  /* EXPORT GRID - single column on mobile */
+  .exp-grid{display:grid;grid-template-columns:1fr;gap:12px;}
+  .exp-card{background:var(--card);border:1px solid var(--border);overflow:hidden;}
+  .ec-hd{padding:9px 12px;background:var(--cream);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+  .ec-nm{font-family:'DM Mono',monospace;font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;}
+  .ec-sp{font-family:'DM Mono',monospace;font-size:.54rem;color:var(--muted);}
+  .ec-bd{padding:10px;}
+  .cv-wrap{background:#ccc;display:flex;align-items:center;justify-content:center;overflow:hidden;margin-bottom:8px;max-height:200px;}
+  .cv-wrap canvas{max-width:100%;max-height:200px;display:block;}
+  .dl-btn{width:100%;background:var(--ink);color:var(--paper);border:none;padding:12px;font-family:'DM Mono',monospace;font-size:.62rem;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;}
+  .dl-btn:active{background:var(--amber);color:var(--ink);}
+
+  .no-ph{text-align:center;padding:32px 14px;color:var(--muted);font-style:italic;font-family:'Playfair Display',serif;font-size:.85rem;}
+
+  /* desktop: restore split layout */
+  @media(min-width:860px){
+    .page{max-width:none;padding:0;}
+    .desktop-split{display:grid;grid-template-columns:400px 1fr;height:calc(100vh - 108px);}
+    .desktop-left{background:var(--card);border-right:1px solid var(--border);padding:20px 18px;overflow-y:auto;}
+    .desktop-right{background:var(--paper);padding:26px;overflow-y:auto;}
+    .output-area{margin-top:0;}
+    .empty{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0;}
+    .loading{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0;}
+    .exp-grid{grid-template-columns:repeat(2,1fr);}
+    .sched-list li{display:grid;grid-template-columns:52px 88px auto;gap:8px;flex-wrap:unset;}
+    .sched-note{flex-basis:unset;padding-left:0;}
+  }
+
+
+  /* Tracker-style form rows */
+  .form-row-t{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-bottom:10px;}
+  .form-row-t .fg{margin-bottom:0;}
+  .form-row-t input,.form-row-t select{font-size:13px;padding:7px 10px;border:1px solid var(--border);border-radius:8px;background:var(--paper);color:var(--ink);width:100%;-webkit-appearance:none;}
+  .form-row-t input:focus,.form-row-t select:focus{border-color:var(--amber);outline:none;}
+  .form-row-t label{font-size:11px;color:var(--muted);margin-bottom:3px;font-family:'DM Sans',sans-serif;text-transform:none;letter-spacing:0;}
+  /* Platform result sections */
+  .plat-section{background:var(--card);border:1px solid var(--border);margin-bottom:12px;overflow:hidden;}
+  .plat-section-head{display:flex;align-items:center;gap:8px;padding:10px 13px;background:var(--cream);border-bottom:1px solid var(--border);}
+  .plat-section-icon{font-size:15px;}
+  .plat-section-name{font-family:'DM Mono',monospace;font-size:.65rem;letter-spacing:.1em;text-transform:uppercase;flex:1;}
+  .plat-block{padding:12px 13px;border-bottom:1px solid var(--border);}
+  .plat-block:last-child{border-bottom:none;}
+  .plat-block-label{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;font-family:'DM Mono',monospace;font-size:.58rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);}
+  .plat-block-text{font-size:.84rem;line-height:1.75;white-space:pre-wrap;color:var(--ink);}
+  .char-pill{font-family:'DM Mono',monospace;font-size:.55rem;padding:2px 6px;background:var(--cream);border:1px solid var(--border);color:var(--muted);}
+  .char-pill.over{background:#fce8e8;border-color:#e0b0b0;color:#c0392b;}
+  .arc-table{width:100%;font-size:.75rem;border-collapse:collapse;}
+  .arc-table th{text-align:left;padding:7px 10px;font-family:'DM Mono',monospace;font-size:.55rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);background:var(--cream);border-bottom:1px solid var(--border);}
+  .arc-table td{padding:7px 10px;border-bottom:1px solid var(--border);vertical-align:top;}
+  .arc-table tr:last-child td{border-bottom:none;}
+  .wk-badge{font-family:'DM Mono',monospace;font-size:.58rem;background:var(--ink);color:var(--paper);padding:2px 6px;white-space:nowrap;}
+  .plat-badge2{font-family:'DM Mono',monospace;font-size:.58rem;background:var(--amber);color:var(--ink);padding:2px 6px;white-space:nowrap;}
+  .research-banner{background:var(--ink);color:var(--paper);padding:10px 13px;display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:10px;}
+  .research-banner .rb-left{display:flex;align-items:center;gap:8px;min-width:0;}
+  .research-banner .rb-label{font-family:'DM Mono',monospace;font-size:.55rem;letter-spacing:.1em;text-transform:uppercase;color:var(--amber-light);}
+  .research-banner .rb-item{font-family:'Playfair Display',serif;font-size:.82rem;font-style:italic;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .view-res-btn{background:var(--amber);color:var(--ink);border:none;padding:6px 11px;font-family:'DM Mono',monospace;font-size:.57rem;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;white-space:nowrap;flex-shrink:0;}
+  .divider{border:none;border-top:2px solid var(--ink);margin:18px 0;}
+  /* Chat */
+  .chat-section{margin-top:16px;border-top:2px solid var(--ink);padding-top:16px;}
+  .chat-section-label{font-family:'DM Mono',monospace;font-size:.58rem;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);margin-bottom:12px;}
+  .chat-history{display:flex;flex-direction:column;gap:10px;margin-bottom:12px;max-height:320px;overflow-y:auto;}
+  .chat-msg{display:flex;flex-direction:column;gap:3px;}
+  .chat-msg.user{align-items:flex-end;}
+  .chat-msg.assistant{align-items:flex-start;}
+  .chat-bubble{max-width:85%;padding:10px 13px;font-size:.84rem;line-height:1.65;}
+  .chat-msg.user .chat-bubble{background:var(--ink);color:var(--paper);}
+  .chat-msg.assistant .chat-bubble{background:var(--info-bg);border:1px solid var(--info-border);color:var(--ink);white-space:pre-wrap;}
+  .chat-msg .chat-role{font-family:'DM Mono',monospace;font-size:.55rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);}
+  .chat-input-row{display:flex;gap:8px;align-items:flex-end;}
+  .chat-input-row textarea{flex:1;min-height:44px;max-height:120px;font-size:15px;padding:10px 12px;border:1px solid var(--border);background:var(--paper);color:var(--ink);resize:none;line-height:1.5;}
+  .chat-input-row textarea:focus{border-color:var(--amber);outline:none;}
+  .chat-send-btn{background:var(--amber);border:none;padding:10px 16px;font-family:'DM Mono',monospace;font-size:.65rem;letter-spacing:.08em;text-transform:uppercase;color:var(--ink);cursor:pointer;height:44px;}
+  .chat-send-btn:disabled{opacity:.45;}
+  .refine-btn{background:var(--ink);color:var(--paper);border:none;cursor:pointer;padding:4px 9px;font-family:'DM Mono',monospace;font-size:.56rem;letter-spacing:.08em;text-transform:uppercase;margin-left:4px;}
+  .refine-btn:hover{background:var(--info);}
+  /* Research cards */
+  .knowledge-note{background:var(--info-bg);border:1px solid var(--info-border);padding:10px 12px;margin-bottom:14px;display:flex;gap:9px;align-items:flex-start;}
+  .knowledge-note .kn-icon{font-size:13px;flex-shrink:0;margin-top:1px;}
+  .knowledge-note p{font-size:.72rem;color:#2a4a5e;line-height:1.55;font-family:'DM Mono',monospace;}
+  .research-card{background:var(--info-bg);border:1px solid var(--info-border);margin-bottom:12px;overflow:hidden;}
+  .research-card .rc-head{padding:9px 12px;background:#dde8ef;border-bottom:1px solid var(--info-border);display:flex;align-items:center;justify-content:space-between;}
+  .research-card .rc-label{font-family:'DM Mono',monospace;font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:#2a4a5e;}
+  .research-card .rc-body{padding:12px;}
+  .research-card .rc-body p{font-size:.84rem;line-height:1.75;white-space:pre-wrap;color:var(--ink);}
+  .title-display{font-family:'DM Mono',monospace;font-size:.78rem;background:var(--paper);border:1px solid var(--border);padding:9px 11px;line-height:1.5;color:var(--ink);margin-bottom:4px;word-break:break-all;}
+  .char-count{font-family:'DM Mono',monospace;font-size:.58rem;color:var(--muted);text-align:right;margin-bottom:8px;}
+  .char-count.over{color:#c0392b;font-weight:500;}
+  .value-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px;}
+  .val-box{background:var(--paper);border:1px solid var(--border);padding:10px;text-align:center;}
+  .val-box .vl{font-family:'DM Mono',monospace;font-size:.55rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:3px;}
+  .val-box .vv{font-family:'Playfair Display',serif;font-size:1.1rem;color:var(--ink);}
+  /* Photo editor */
+  .bg-mode-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:14px;}
+  .bg-mode-btn{padding:10px 8px;border:1px solid var(--border);background:var(--paper);font-family:'DM Mono',monospace;font-size:.6rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);cursor:pointer;text-align:center;transition:all .15s;}
+  .bg-mode-btn.active{background:var(--ink);color:var(--paper);border-color:var(--ink);}
+  .style-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:14px;}
+  .style-swatch{position:relative;aspect-ratio:1;cursor:pointer;border:2px solid transparent;transition:border-color .15s;overflow:hidden;}
+  .style-swatch.active{border-color:var(--amber);}
+  .style-swatch canvas{width:100%;height:100%;display:block;}
+  .style-swatch .sw-label{position:absolute;bottom:0;left:0;right:0;background:rgba(26,20,16,.72);color:#fff;font-family:'DM Mono',monospace;font-size:7px;letter-spacing:.08em;text-transform:uppercase;padding:3px 4px;text-align:center;}
+  .style-swatch .sw-suggest{position:absolute;top:3px;right:3px;background:var(--amber);color:var(--ink);font-family:'DM Mono',monospace;font-size:7px;padding:1px 4px;}
+  .suggest-note{background:var(--info-bg);border:1px solid var(--info-border);padding:8px 11px;font-family:'DM Mono',monospace;font-size:.62rem;color:#2a4a5e;line-height:1.5;margin-bottom:12px;display:none;}
+  .suggest-note.visible{display:block;}
+
+  /* Inventory integration */
+  .inv-section{background:var(--cream);border:1px solid var(--border);padding:14px;margin-bottom:14px;}
+  .inv-section .sec{margin-top:0;margin-bottom:10px;}
+  .inv-status{font-family:'DM Mono',monospace;font-size:.63rem;min-height:18px;margin-top:6px;text-align:center;}
+  .inv-search-wrap{position:relative;margin-top:8px;}
+  .inv-search-wrap input{width:100%;font-size:14px;padding:9px 12px;border:1px solid var(--border);background:var(--paper);color:var(--ink);border-radius:0;box-sizing:border-box;}
+  .inv-search-wrap input:focus{border-color:var(--amber);outline:none;}
+  .inv-search-wrap .search-hint{font-family:'DM Mono',monospace;font-size:.58rem;color:var(--muted);margin-top:4px;}
+  .inv-dropdown{position:absolute;top:100%;left:0;right:0;background:var(--paper);border:1px solid var(--amber);border-top:none;z-index:200;max-height:260px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,.12);}
+  .inv-dropdown-item{padding:10px 12px;cursor:pointer;border-bottom:1px solid var(--border);transition:background .1s;}
+  .inv-dropdown-item:last-child{border-bottom:none;}
+  .inv-dropdown-item:hover,.inv-dropdown-item.focused{background:var(--cream);}
+  .inv-dropdown-item .di-name{font-size:.85rem;color:var(--ink);line-height:1.3;}
+  .inv-dropdown-item .di-meta{font-family:'DM Mono',monospace;font-size:.58rem;color:var(--muted);margin-top:2px;}
+  .inv-dropdown-empty{padding:10px 12px;font-family:'DM Mono',monospace;font-size:.62rem;color:var(--muted);font-style:italic;}
+  .inv-dropdown-count{padding:6px 12px;font-family:'DM Mono',monospace;font-size:.55rem;color:var(--muted);background:var(--cream);border-bottom:1px solid var(--border);}
+  .inv-add-btn{width:100%;background:var(--success);color:var(--paper);border:none;padding:12px;font-family:'DM Mono',monospace;font-size:.65rem;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;margin-bottom:6px;}
+  #invUpdateRow{display:none;gap:6px;margin-bottom:6px;}
+  .inv-add-btn:hover{opacity:.88;}
+  .inv-add-btn:disabled{opacity:.4;cursor:not-allowed;}
+
+  /* ============ CAMPAIGN MANAGER ============ */
+  .due-banner{background:#7c3a1a;color:#fff;padding:12px 16px;margin-bottom:16px;border-left:4px solid var(--amber);}
+  .due-banner .db-title{font-family:'DM Mono',monospace;font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px;color:var(--amber-light);}
+  .due-banner .db-item{font-size:.82rem;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.1);}
+  .due-banner .db-item:last-child{border-bottom:none;}
+  .due-badge{display:inline-block;font-family:'DM Mono',monospace;font-size:.55rem;padding:1px 5px;margin-right:6px;text-transform:uppercase;}
+  .due-badge.today{background:var(--amber);color:var(--ink);}
+  .due-badge.overdue{background:#c0392b;color:#fff;}
+  .due-badge.upcoming{background:var(--muted);color:#fff;}
+
+  .camp-card{background:var(--card);border:1px solid var(--border);margin-bottom:10px;overflow:hidden;}
+  .camp-card-head{display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer;user-select:none;transition:background .15s;}
+  .camp-card-head:hover{background:var(--cream);}
+  .camp-card-name{font-family:'Playfair Display',serif;font-size:.95rem;font-weight:400;flex:1;}
+  .camp-card-meta{font-family:'DM Mono',monospace;font-size:.58rem;color:var(--muted);text-align:right;}
+  .camp-card-chevron{font-size:.7rem;color:var(--muted);transition:transform .2s;}
+  .camp-card-chevron.open{transform:rotate(90deg);}
+  .camp-card-body{display:none;border-top:1px solid var(--border);}
+  .camp-card-body.open{display:block;}
+
+  .camp-progress{height:4px;background:var(--border);margin:0;}
+  .camp-progress-bar{height:100%;background:var(--amber);transition:width .3s;}
+
+  .arc-platform{border-bottom:1px solid var(--border);}
+  .arc-platform:last-child{border-bottom:none;}
+  .arc-plat-head{display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--cream);}
+  .arc-plat-icon{font-size:13px;}
+  .arc-plat-name{font-family:'DM Mono',monospace;font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;flex:1;}
+  .arc-plat-done{font-family:'DM Mono',monospace;font-size:.58rem;color:var(--muted);}
+
+  .arc-step{display:flex;align-items:flex-start;gap:10px;padding:9px 14px;border-top:1px solid var(--border);transition:background .15s;}
+  .arc-step:first-of-type{border-top:none;}
+  .arc-step.done{opacity:.55;}
+  .arc-step.current{background:#fdf9f0;border-left:3px solid var(--amber);}
+  .arc-step.overdue{background:#fff5f5;border-left:3px solid #c0392b;}
+  .arc-step input[type=checkbox]{width:16px;height:16px;accent-color:var(--amber);cursor:pointer;flex-shrink:0;margin-top:2px;}
+  .arc-step-info{flex:1;}
+  .arc-step-label{font-size:.82rem;font-weight:400;line-height:1.4;}
+  .arc-step-label.done{text-decoration:line-through;color:var(--muted);}
+  .arc-step-date{font-family:'DM Mono',monospace;font-size:.58rem;color:var(--muted);margin-top:2px;}
+  .arc-step-status{font-family:'DM Mono',monospace;font-size:.55rem;padding:2px 6px;text-transform:uppercase;flex-shrink:0;}
+  .arc-step-status.today{background:var(--amber);color:var(--ink);}
+  .arc-step-status.overdue{background:#c0392b;color:#fff;}
+  .arc-step-status.upcoming{color:var(--muted);}
+  .arc-step-status.done{color:var(--success);}
+
+  .camp-actions{display:flex;gap:8px;padding:12px 14px;background:var(--cream);border-top:1px solid var(--border);}
+  .camp-end-btn{flex:1;background:transparent;border:1px solid var(--border);padding:8px;font-family:'DM Mono',monospace;font-size:.6rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);cursor:pointer;}
+  .camp-end-btn:hover{border-color:#c0392b;color:#c0392b;}
+  .camp-archive-btn{flex:1;background:transparent;border:1px solid var(--border);padding:8px;font-family:'DM Mono',monospace;font-size:.6rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);cursor:pointer;}
+  .camp-archive-btn:hover{border-color:var(--amber);color:var(--amber);}
+
+  .mgr-empty{text-align:center;padding:60px 20px;opacity:.35;}
+  .mgr-empty .ei{font-size:40px;margin-bottom:10px;}
+  .mgr-empty h2{font-family:'Playfair Display',serif;font-size:1.1rem;font-weight:400;margin-bottom:6px;}
+  .mgr-empty p{font-size:.78rem;color:var(--muted);line-height:1.6;}
+
+  .start-camp-btn{width:100%;background:var(--success);color:var(--paper);border:none;padding:13px;font-family:'DM Mono',monospace;font-size:.65rem;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;margin-top:8px;}
+  .start-camp-btn:hover{opacity:.88;}
+  .start-camp-btn:disabled{opacity:.4;cursor:not-allowed;}
+  .mgr-badge{display:none;background:#c0392b;color:#fff;font-family:'DM Mono',monospace;font-size:.5rem;padding:1px 5px;border-radius:8px;margin-left:4px;vertical-align:middle;}
+  .mgr-badge.visible{display:inline;}
+  ::-webkit-scrollbar{width:4px;}::-webkit-scrollbar-thumb{background:var(--border);}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo-mark">W</div>
+  <div>
+    <h1>Winters Memory Market</h1>
+    <span>Campaign &amp; Photo Tool</span>
+  </div>
+</header>
+
+<div class="tabs">
+  <button class="tab-btn active" onclick="switchTab('campaign',this)">✦ Campaign</button>
+  <button class="tab-btn" onclick="switchTab('photos',this)">◈ Photo Editor</button>
+  <button class="tab-btn" onclick="switchTab('manager',this)" id="mgr-tab-btn">📋 Active Campaigns<span class="mgr-badge"></span></button>
+</div>
+
+<!-- ===== CAMPAIGN TAB ===== -->
+<div class="tab-content active" id="tab-campaign">
+  <div class="desktop-split" id="campaignSplit">
+  <div class="desktop-left" id="campaignLeft">
+  <div class="page">
+
+    <div class="sec">Item Photos</div>
+    <div class="drop-zone" id="dz">
+      <input type="file" id="fi" accept="image/*" multiple>
+      <div class="dz-icon">📷</div>
+      <p><strong>Tap to add photos</strong><br><span style="font-size:.72rem">JPEG · PNG · WEBP — up to 20</span></p>
+    </div>
+    <div class="thumb-grid" id="tg"></div>
+
+    <div class="sec">API Key</div>
+    <div class="fg">
+      <label>Anthropic API Key</label>
+      <input type="password" id="apiKey" placeholder="sk-ant-..." autocomplete="current-password" oninput="handleApiKeyInput()">
+      <div style="display:flex;align-items:center;gap:8px;margin-top:7px;">
+        <input type="checkbox" id="rememberKey" style="width:15px;height:15px;accent-color:var(--amber);cursor:pointer;flex-shrink:0;" onchange="handleRememberKey()">
+        <label for="rememberKey" style="font-size:.63rem;color:var(--muted);font-family:'DM Mono',monospace;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;margin-bottom:0;">Remember on this device</label>
+      </div>
+      <div id="apiKeyStatus" style="font-size:.62rem;color:var(--success);margin-top:4px;font-family:'DM Mono',monospace;"></div>
+    </div>
+
+    <div class="sec">Item Details</div>
+    <div class="form-row-t">
+      <div class="fg"><label>Item name</label><input type="text" id="iName" placeholder="e.g. 1940s rhinestone brooch" autocomplete="off"></div>
+      <div class="fg"><label>SKU</label><input type="text" id="iSku" placeholder="JWL-001" autocomplete="off"></div>
+      <div class="fg"><label>Category</label>
+        <select id="iCat">
+          <option value="">Select category</option>
+          <option>Advertising</option>
+          <option>Art</option>
+          <option>Automotive & Aviation</option>
+          <option>Books & Magazines</option>
+          <option>Ceramics & Glassware</option>
+          <option>Christmas & Halloween</option>
+          <option>Clothing & Textiles</option>
+          <option>Collectibles</option>
+          <option>Comics & Pulps</option>
+          <option>Crafts & Patterns</option>
+          <option>Disasteriana</option>
+          <option>Disneyiana</option>
+          <option>Dolls & Stuffed Animals</option>
+          <option>Entertainment Memorabilia</option>
+          <option>Ephemera & Trade Cards</option>
+          <option>Equestrian</option>
+          <option>Farming & Equipment</option>
+          <option>Golf</option>
+          <option>Housewares & Tins</option>
+          <option>Hunting & Outdoors</option>
+          <option>Jewelry & Pins</option>
+          <option>Militaria</option>
+          <option>Movie & Music Posters</option>
+          <option>Music (Records & Cassettes)</option>
+          <option>Photography & Snapshots</option>
+          <option>Political & Presidential</option>
+          <option>Post Cards</option>
+          <option>Railroadiana & Trains</option>
+          <option>Souvenirs</option>
+          <option>Sports Memorabilia</option>
+          <option>Stamps & Postal History</option>
+          <option>Stereoviews</option>
+          <option>Tobacciana</option>
+          <option>Toys & Games</option>
+          <option>Video Games</option>
+          <option>Other</option>
+        </select>
+      </div>
+      <div class="fg"><label>Condition</label>
+        <select id="iCond"><option>NWT</option><option>NWOT</option><option>Excellent</option><option>Very Good</option><option selected>Good</option><option>Fair</option><option>Parts/As-Is</option></select>
+      </div>
+    </div>
+    <div class="form-row-t">
+      <div class="fg"><label>Source</label>
+        <select id="iSource"><option>Inherited</option><option>Purchased</option><option>Consignment</option></select>
+      </div>
+      <div class="fg"><label>Era / Decade</label><input type="text" id="iEra" placeholder="e.g. 1920s" autocomplete="off"></div>
+      <div class="fg"><label>Location</label>
+        <select id="iLoc"><option>NC</option><option>FL</option></select>
+      </div>
+      <div class="fg"><label>Cost basis ($)</label><input type="number" id="iCost" placeholder="0.00" inputmode="decimal" step="0.01"></div>
+    </div>
+    <div class="form-row-t">
+      <div class="fg"><label>List price ($)</label><input type="number" id="iPrice" placeholder="0.00" inputmode="decimal" step="0.01"></div>
+      <div class="fg"><label>Status</label><select id="iStatus"><option>Unlisted</option><option>Listed</option></select></div>
+      <div class="fg"><label>Date acquired</label><input type="date" id="iDate"></div>
+      <div class="fg"><label>Ship weight (oz)</label><input type="number" id="iWeight" placeholder="0.0" inputmode="decimal" step="0.1"></div>
+    </div>
+    <div class="form-row-t">
+      <div class="fg"><label>Package dims (L×W×H in)</label><input type="text" id="iDims" placeholder="e.g. 12×9×4" autocomplete="off"></div>
+      <div class="fg"><label>Place of purchase</label><input type="text" id="iPurchaseSource" placeholder="e.g. Thrift Store" autocomplete="off"></div>
+      <div class="fg"><label>Order ID</label><input type="text" id="iOrderId" placeholder="e.g. 381212984" autocomplete="off"></div>
+      <div class="fg"><label>Notes</label><input type="text" id="iNotes" placeholder="Any extra details" autocomplete="off"></div>
+    </div>
+    <div class="form-row-t">
+      <div class="fg" style="grid-column:1/-1;">
+        <label>Item measurements (inches)</label>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:5px;">
+          <input type="number" id="iMeasL" placeholder="Length" inputmode="decimal" step="0.01" oninput="updateMeasDisplay()">
+          <input type="number" id="iMeasW" placeholder="Width" inputmode="decimal" step="0.01" oninput="updateMeasDisplay()">
+          <input type="number" id="iMeasH" placeholder="Height" inputmode="decimal" step="0.01" oninput="updateMeasDisplay()">
+        </div>
+        <div id="measDisplay" style="font-family:'DM Mono',monospace;font-size:.65rem;color:var(--muted);min-height:16px;"></div>
+      </div>
+    </div>
+    <div class="form-row-t">
+      <div class="fg" style="grid-column:1/-1;">
+        <label>eBay Listing URL <span style="font-weight:400;opacity:.6;text-transform:none;letter-spacing:0;">(optional — used in Facebook &amp; Pinterest descriptions)</span></label>
+        <input type="url" id="iEbayUrl" placeholder="https://www.ebay.com/itm/..." autocomplete="off" style="font-size:14px;">
+        <div style="font-family:'DM Mono',monospace;font-size:.6rem;color:var(--muted);margin-top:3px;">Leave blank if not yet listed. Instagram will use "Link in bio" instead.</div>
+      </div>
+    </div>
+
+    <div class="inv-section">
+      <div class="sec">Inventory Tracker</div>
+      <button class="inv-add-btn" id="invAddBtn" onclick="addToInventory()">+ Add Item to Inventory Tracker</button>
+      <div style="display:none;gap:6px;" id="invUpdateRow">
+        <button class="inv-add-btn" id="invUpdateBtn" onclick="updateInventoryItem()" style="background:var(--info);flex:1;margin-bottom:0;">↻ Update Existing Item</button>
+        <button class="inv-add-btn" onclick="resetForm()" style="background:var(--muted);flex:none;width:auto;padding:12px 16px;margin-bottom:0;">✕ New Item</button>
+      </div>
+      <div class="inv-status" id="invStatus"></div>
+      <div class="inv-search-wrap" id="invSearchWrap">
+        <input type="text" id="loadInput" placeholder="Search inventory by keyword, SKU, or category..." autocomplete="off" oninput="onSearchInput()" onkeydown="onSearchKey(event)" onfocus="onSearchFocus()">
+        <div class="search-hint">Type to search — results appear as you type</div>
+        <div class="inv-dropdown" id="invDropdown" style="display:none;"></div>
+      </div>
+      <div id="loadStatus" style="font-family:'DM Mono',monospace;font-size:.6rem;color:var(--muted);margin-top:5px;min-height:14px;"></div>
+    </div>
+
+    <div class="sec">Platforms</div>
+    <div class="plat-grid">
+      <label class="plat-tog"><input type="checkbox" value="instagram" checked><span class="pi">📸</span><span class="pn">Instagram</span></label>
+      <label class="plat-tog"><input type="checkbox" value="facebook" checked><span class="pi">👥</span><span class="pn">Facebook</span></label>
+      <label class="plat-tog"><input type="checkbox" value="pinterest" checked><span class="pi">📌</span><span class="pn">Pinterest</span></label>
+      <label class="plat-tog"><input type="checkbox" value="ebay" checked><span class="pi">🛒</span><span class="pn">eBay</span></label>
+      <label class="plat-tog"><input type="checkbox" value="etsy" checked><span class="pi">🧵</span><span class="pn">Etsy</span></label>
+    </div>
+
+    <div class="btn-row">
+      <button class="res-btn" id="resBtn" onclick="runResearch()">🔍 Research</button>
+      <button class="gen-btn" id="genBtn" onclick="generateOnly()">Generate</button>
+    </div>
+    <button class="gen-btn full-btn" id="bothBtn" onclick="runBoth()">Research + Generate</button>
+
+  </div><!-- /page -->
+  </div><!-- /desktop-left -->
+
+  <div class="desktop-right" id="campaignRight">
+  <div class="page">
+    <div id="researchOut" style="display:none;margin-bottom:20px;"></div>
+    <div class="output-area" id="out">
+      <div class="empty">
+        <div class="ei">✦</div>
+        <h2>Ready when you are</h2>
+        <p>Hit <strong>Research</strong> to identify and value your item, or <strong>Research + Generate</strong> to do everything at once.</p>
+      </div>
+    </div>
+  </div>
+  </div><!-- /desktop-right -->
+  </div><!-- /desktop-split -->
+</div>
+
+<!-- ===== PHOTO EDITOR TAB ===== -->
+<div class="tab-content" id="tab-photos">
+  <div class="desktop-split" id="editorSplit">
+  <div class="desktop-left" id="editorLeft">
+  <div class="page">
+
+    <div class="sec">Select Photo</div>
+    <div class="ed-sel" id="edSel">
+      <div class="no-ph" style="grid-column:1/-1">Add photos in the Campaign tab first</div>
+    </div>
+
+    <div class="sec">Adjustments</div>
+    <div class="sl-row"><label>Brightness</label><input type="range" id="sl-br" min="-100" max="100" value="0" oninput="sv(this,'vbr');edPreview()"><span class="sl-val" id="vbr">0</span></div>
+    <div class="sl-row"><label>Contrast</label><input type="range" id="sl-co" min="-100" max="100" value="0" oninput="sv(this,'vco');edPreview()"><span class="sl-val" id="vco">0</span></div>
+    <div class="sl-row"><label>Saturation</label><input type="range" id="sl-sa" min="-100" max="100" value="0" oninput="sv(this,'vsa');edPreview()"><span class="sl-val" id="vsa">0</span></div>
+    <div class="sl-row"><label>Warmth</label><input type="range" id="sl-wa" min="-50" max="50" value="0" oninput="sv(this,'vwa');edPreview()"><span class="sl-val" id="vwa">0</span></div>
+    <div class="sl-row"><label>Sharpness</label><input type="range" id="sl-sh" min="0" max="100" value="0" oninput="sv(this,'vsh');edPreview()"><span class="sl-val" id="vsh">0</span></div>
+    <div class="rst" onclick="resetAll()">Reset all adjustments</div>
+
+    <div class="sec" style="margin-top:18px">eBay Background</div>
+    <div class="bg-tog"><input type="checkbox" id="bgRm" onchange="edPreview()"><label for="bgRm">Replace background with white</label></div>
+    <p class="bg-note">Uses edge detection to isolate the subject. Works best with clear contrast between item and background.</p>
+    <button class="proc-btn" onclick="edPreview()">Apply &amp; Preview All</button>
+
+  </div>
+  </div><!-- /desktop-left -->
+
+  <div class="desktop-right" id="editorRight">
+  <div class="page">
+    <div id="edOut">
+      <div class="empty">
+        <div class="ei">◈</div>
+        <h2>Select a photo to edit</h2>
+        <p>Choose a photo and adjust the sliders.</p>
+      </div>
+    </div>
+  </div>
+  </div><!-- /desktop-right -->
+  </div><!-- /desktop-split -->
+</div>
+
+<script>
+// ============================================================
+// STATE
+// ============================================================
+let photos=[], edIdx=0, researchData=null, chatHistory=[], _clipStore={}, _clipIdx=0;
+function storeClip(text){const id='c'+(++_clipIdx);_clipStore[id]=text;return id;}
+function storeChat(text){const id='r'+(++_clipIdx);_clipStore[id]=text;return id;}
+
+// ============================================================
+// API KEY PERSISTENCE
+// ============================================================
+function initApiKey(){
+  const saved=localStorage.getItem('wmm_api_key');
+  const remembered=localStorage.getItem('wmm_remember_key')==='true';
+  if(saved&&remembered){
+    document.getElementById('apiKey').value=saved;
+    document.getElementById('rememberKey').checked=true;
+    document.getElementById('apiKeyStatus').textContent='Key loaded from this device.';
+  }
+}
+function handleApiKeyInput(){
+  const key=document.getElementById('apiKey').value.trim();
+  if(document.getElementById('rememberKey').checked&&key) localStorage.setItem('wmm_api_key',key);
+  document.getElementById('apiKeyStatus').textContent='';
+}
+function handleRememberKey(){
+  const remember=document.getElementById('rememberKey').checked;
+  const key=document.getElementById('apiKey').value.trim();
+  if(remember&&key){localStorage.setItem('wmm_api_key',key);localStorage.setItem('wmm_remember_key','true');document.getElementById('apiKeyStatus').textContent='Key saved to this device.';}
+  else if(!remember){localStorage.removeItem('wmm_api_key');localStorage.setItem('wmm_remember_key','false');document.getElementById('apiKeyStatus').textContent='Key removed.';}
+}
+function saveKeyIfRemembered(){
+  const remember=document.getElementById('rememberKey')?.checked;
+  const key=document.getElementById('apiKey')?.value.trim();
+  if(remember&&key){localStorage.setItem('wmm_api_key',key);localStorage.setItem('wmm_remember_key','true');}
+}
+
+// ============================================================
+// PHOTO SPECS
+// ============================================================
+const SPECS=[
+  {key:'instagram_sq', label:'Instagram Square',  icon:'📸',w:1080,h:1080,desc:'1:1 · 1080×1080',  ebay:false},
+  {key:'instagram_45', label:'Instagram Portrait', icon:'📸',w:1080,h:1350,desc:'4:5 · 1080×1350',  ebay:false},
+  {key:'facebook',     label:'Facebook',           icon:'👥',w:1200,h:630, desc:'1.91:1 · 1200×630',ebay:false},
+  {key:'pinterest',    label:'Pinterest',          icon:'📌',w:1000,h:1500,desc:'2:3 · 1000×1500',  ebay:false},
+  {key:'ebay',         label:'eBay (White BG)',    icon:'🛒',w:1600,h:1600,desc:'1:1 · 1600×1600',  ebay:true },
+];
+
+// ============================================================
+// PHOTOS
+// ============================================================
+const dz=document.getElementById('dz'),fi=document.getElementById('fi');
+dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('over');});
+dz.addEventListener('dragleave',()=>dz.classList.remove('over'));
+dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('over');loadFiles(Array.from(e.dataTransfer.files));});
+fi.addEventListener('change',e=>loadFiles(Array.from(e.target.files)));
+
+function loadFiles(files){
+  files.slice(0,20-photos.length).forEach(f=>{
+    if(!f.type.startsWith('image/'))return;
+    const r=new FileReader();
+    r.onload=ev=>{
+      const url=ev.target.result;
+      const img=new Image();
+      img.onload=()=>{
+        const compressed=compressImage(img,4.5);
+        const ci=new Image();
+        ci.onload=()=>{photos.push({dataUrl:compressed,base64:compressed.split(',')[1],mediaType:'image/jpeg',img:ci});renderThumbs();refreshEdSel();};
+        ci.src=compressed;
+      };
+      img.src=url;
+    };
+    r.readAsDataURL(f);
+  });
+}
+
+function compressImage(img,maxMB){
+  const maxBytes=maxMB*1024*1024;
+  const c=document.createElement('canvas');
+  let w=img.naturalWidth||img.width,h=img.naturalHeight||img.height;
+  const maxDim=2400;
+  if(w>maxDim||h>maxDim){if(w>h){h=Math.round(h*maxDim/w);w=maxDim;}else{w=Math.round(w*maxDim/h);h=maxDim;}}
+  c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);
+  let q=0.92,d=c.toDataURL('image/jpeg',q);
+  while(d.length*0.75>maxBytes&&q>0.4){q-=0.08;d=c.toDataURL('image/jpeg',q);}
+  return d;
+}
+
+function renderThumbs(){
+  document.getElementById('tg').innerHTML=photos.map((p,i)=>`
+    <div class="thumb"><img src="${p.dataUrl}"><button class="rm" onclick="rmPhoto(${i})">✕</button><div class="tn">${i+1}</div></div>`).join('');
+  document.getElementById('dz').style.display=photos.length>=20?'none':'';
+}
+
+function rmPhoto(i){photos.splice(i,1);if(edIdx>=photos.length)edIdx=Math.max(0,photos.length-1);renderThumbs();refreshEdSel();}
+
+function refreshEdSel(){
+  const sel=document.getElementById('edSel');
+  if(!photos.length){sel.innerHTML='<div class="no-ph" style="grid-column:1/-1">Add photos in the Campaign tab first</div>';document.getElementById('edOut').innerHTML='<div class="empty"><div class="ei">◈</div><h2>No photos yet</h2><p>Add photos in the Campaign tab.</p></div>';return;}
+  sel.innerHTML=photos.map((p,i)=>`<div class="es-th ${i===edIdx?'act':''}" onclick="selEd(${i})"><img src="${p.dataUrl}"><div class="sn">${i+1}</div></div>`).join('');
+}
+function selEd(i){edIdx=i;refreshEdSel();edPreview();}
+
+// ============================================================
+// TABS
+// ============================================================
+function switchTab(tab,btn){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
+  btn.classList.add('active');document.getElementById('tab-'+tab).classList.add('active');
+  if(tab==='photos')refreshEdSel();
+  if(tab==='manager')loadCampaigns();
+  window.scrollTo(0,0);
+}
+
+// ============================================================
+// HELPERS
+// ============================================================
+function setBtns(disabled){['resBtn','genBtn','bothBtn'].forEach(id=>{const b=document.getElementById(id);if(b)b.disabled=disabled;});}
+function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function ex(tag,raw){const r=new RegExp('---'+tag+'---\\s*([\\s\\S]*?)(?=(?:---[A-Z_]+---)|$)','i');const m=raw.match(r);return m?m[1].trim():'';}
+
+async function cp(btn,text){
+  let ok=false;
+  try{await navigator.clipboard.writeText(text);ok=true;}catch(e){
+    try{const ta=document.createElement('textarea');ta.value=text;ta.style.cssText='position:fixed;top:-9999px;left:-9999px;opacity:0;';document.body.appendChild(ta);ta.focus();ta.select();ok=document.execCommand('copy');document.body.removeChild(ta);}catch(e2){}
+  }
+  if(ok){const orig=btn.textContent;btn.textContent='Copied!';btn.classList.add('ok');setTimeout(()=>{btn.textContent=orig;btn.classList.remove('ok');},2000);}
+  else{window.prompt('Copy (Cmd+C):',text);}
+}
+function cpId(btn,id){const t=_clipStore[id];if(t!==undefined)cp(btn,t);}
+function refineId(id){const t=_clipStore[id];if(t!==undefined)preFillChat(t);}
+
+function getInputs(){
+  const meas=(()=>{const l=document.getElementById('iMeasL')?.value,w=document.getElementById('iMeasW')?.value,h=document.getElementById('iMeasH')?.value;const p=[l&&l+'"',w&&w+'"',h&&h+'"'].filter(Boolean);return p.join(' x ');})();
+  return{
+    name:document.getElementById('iName')?.value.trim()||'',
+    sku:document.getElementById('iSku')?.value.trim()||'',
+    cat:document.getElementById('iCat')?.value||'',
+    cond:document.getElementById('iCond')?.value||'Good',
+    source:document.getElementById('iSource')?.value||'',
+    era:document.getElementById('iEra')?.value.trim()||'',
+    loc:document.getElementById('iLoc')?.value||'',
+    cost:document.getElementById('iCost')?.value||'',
+    price:document.getElementById('iPrice')?.value||'',
+    status:document.getElementById('iStatus')?.value||'Unlisted',
+    date:document.getElementById('iDate')?.value||'',
+    weight:document.getElementById('iWeight')?.value||'',
+    dims:document.getElementById('iDims')?.value.trim()||'',
+    purchaseSource:document.getElementById('iPurchaseSource')?.value.trim()||'',
+    orderId:document.getElementById('iOrderId')?.value.trim()||'',
+    notes:document.getElementById('iNotes')?.value.trim()||'',
+    measL:document.getElementById('iMeasL')?.value||'',
+    measW:document.getElementById('iMeasW')?.value||'',
+    measH:document.getElementById('iMeasH')?.value||'',
+    meas,
+    ebayUrl:document.getElementById('iEbayUrl')?.value.trim()||'',
+    plats:Array.from(document.querySelectorAll('.plat-tog input:checked')).map(i=>i.value),
+  };
+}
+
+function updateMeasDisplay(){
+  const l=document.getElementById('iMeasL')?.value,w=document.getElementById('iMeasW')?.value,h=document.getElementById('iMeasH')?.value;
+  const parts=[l&&l+'"',w&&w+'"',h&&h+'"'].filter(Boolean);
+  const el=document.getElementById('measDisplay');
+  if(el)el.textContent=parts.length?'-> '+parts.join(' x '):'';
+}
+
+function scrollToOutput(){
+  if(window.innerWidth<860){setTimeout(()=>{const el=document.getElementById('out');if(el)el.scrollIntoView({behavior:'smooth',block:'start'});},100);}
+}
+
+async function callClaude(system,userContent,maxTok=2500){
+  const apiKey=document.getElementById('apiKey').value.trim();
+  if(!apiKey)throw new Error('Please enter your Anthropic API key.');
+  saveKeyIfRemembered();
+  const res=await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+    body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:maxTok,system,messages:[{role:'user',content:userContent}]}),
+  });
+  const data=await res.json();
+  if(data.error)throw new Error(data.error.message||'API error');
+  return(data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('');
+}
+function buildPhotoContent(){return photos.map(p=>({type:'image',source:{type:'base64',media_type:p.mediaType,data:p.base64}}));}
+
+// ============================================================
+// RESEARCH
+// ============================================================
+async function runResearch(){
+  const inp=getInputs();
+  if(!inp.name&&!photos.length){alert('Enter item name or add at least one photo.');return;}
+  setBtns(true);
+  const _ro2=document.getElementById('researchOut');
+  if(_ro2){_ro2.innerHTML='<div class="loading"><div class="dots"><span></span><span></span><span></span></div><p>Identifying item...</p><div class="sub">Analyzing details · building title · estimating value</div></div>';_ro2.style.display='block';}
+  document.getElementById('out').innerHTML='';
+  scrollToOutput();
+  const content=[...buildPhotoContent()];
+  const hasMeas=inp.meas&&inp.meas.trim();
+  const hasNotes=inp.notes&&inp.notes.trim();
+  const prompt=buildResearchPrompt(inp,hasMeas,hasNotes);
+  content.push({type:'text',text:prompt});
+  try{
+    const raw=await callClaude('You are an expert vintage and antique appraiser with encyclopedic knowledge of collectibles, eBay resale markets, and item identification.',content,4000);
+    if(!raw||raw.trim().length<10){document.getElementById('out').innerHTML='<div class="empty"><div class="ei">⚠</div><h2>Empty response</h2><p>Check your API key and try again.</p></div>';setBtns(false);return;}
+    researchData=parseResearch(raw);
+    if(!researchData.identification&&!researchData.title){document.getElementById('out').innerHTML='<div class="empty"><div class="ei">⚠</div><h2>Parse failed</h2><p>Response preview: '+esc(raw.substring(0,300))+'</p></div>';setBtns(false);return;}
+    renderResearch(researchData);
+    // Auto-populate item name with generated eBay title if name field is empty
+    const nameField=document.getElementById('iName');
+    if(nameField&&!nameField.value.trim()&&researchData.title){
+      nameField.value=researchData.title;
+      nameField.style.borderColor='var(--amber)';
+      setTimeout(()=>{nameField.style.borderColor='';},2000);
+    }
+  }catch(e){document.getElementById('out').innerHTML='<div class="empty"><div class="ei">⚠</div><h2>Research failed</h2><p>'+esc(e.message)+'</p></div>';}
+  setBtns(false);
+}
+
+function buildResearchPrompt(inp,hasMeas,hasNotes){
+  return `You are an expert vintage and antique appraiser for Winters Memory Market LLC. Identify this item, suggest an eBay title, and provide a value estimate. Do NOT generate listings for other platforms — that happens in the campaign step.
+
+${photos.length ? photos.length+' photo(s) attached. Examine carefully for maker marks, construction, materials, era clues.' : ''}
+
+SELLER-ENTERED DATA:
+Name: ${inp.name||'not provided'}
+SKU: ${inp.sku||'not assigned'}
+Category: ${inp.cat||'not specified'}
+Era / Decade: ${inp.era||'not specified'}
+Condition grade: ${inp.cond}
+Item Measurements: ${hasMeas ? inp.meas : 'NOT ENTERED'}
+Cost basis: ${inp.cost ? '$'+inp.cost : 'not specified'}
+List price: ${inp.price ? '$'+inp.price : 'not specified'}
+Seller notes: ${hasNotes ? inp.notes : 'none'}
+
+INSTRUCTIONS:
+CONDITION: "${inp.cond}" is the seller grade. Combine with photo assessment for a natural description.
+MEASUREMENTS: ${hasMeas ? 'Use exactly: '+inp.meas+'. Do NOT round, estimate, or substitute.' : 'Not entered — omit from all output.'}
+NOTES: ${hasNotes ? '"'+inp.notes+'" — use as context. Do not quote verbatim.' : 'None.'}
+
+Respond using EXACTLY these four section headers and nothing else:
+
+---IDENTIFICATION---
+Full identification: what the item is, maker/brand if determinable, era, material, style or pattern name. Note confirmed vs likely. 3-5 sentences. Use seller notes as supporting context only.
+
+---EBAY_TITLE---
+One optimized eBay title only. Maximum 80 characters. Front-load most searched keywords. No ALL CAPS. No filler words like Rare, Amazing, Lot.
+
+---VALUE---
+Low: $X | Mid: $X | High: $X
+One sentence on what drives value for this specific item. These are knowledge-based estimates — verify with eBay sold listings.
+
+---SEARCH_TIPS---
+2-3 specific eBay search strings a buyer would use to find this item and verify sold prices.`;
+}
+
+
+function parseResearch(raw){
+  return{
+    identification:ex('IDENTIFICATION',raw),
+    title:ex('EBAY_TITLE',raw),
+    value:ex('VALUE',raw),
+    searchTips:ex('SEARCH_TIPS',raw),
+    raw,
+  };
+}
+
+function renderResearch(rd){
+  if(!rd._chatMode)chatHistory=[];
+  const valMatch=rd.value.match(/Low:\s*\$?([\d,.]+).*?Mid:\s*\$?([\d,.]+).*?High:\s*\$?([\d,.]+)/i);
+  function copyBtn(text){const id=storeClip(text);return `<button class="cp-btn" onclick="cpId(this,'${id}')">Copy</button>`;}
+  function refineBtn(p){const id=storeChat(p);return `<button class="refine-btn" onclick="refineId('${id}')">Refine</button>`;}
+  function charPill(len,max){return `<span class="char-pill ${len>max?'over':''}">${len}/${max}</span>`;}
+
+  let html=`<div class="rh"><h2>Item Research</h2><div class="il">Identification · eBay title · Value</div></div>`;
+  html+=`<div class="knowledge-note"><div class="kn-icon">i</div><p>Values are knowledge-based estimates — verify with eBay sold listings. Use Refine buttons or the chat below to correct anything before generating the campaign.</p></div>`;
+
+  // Identification
+  if(rd.identification){
+    html+=`<div class="research-card"><div class="rc-head"><span class="rc-label">🔍 Identification</span>${refineBtn('The identification needs correction: ')}</div><div class="rc-body"><p>${esc(rd.identification)}</p></div></div>`;
+  }
+
+  // eBay Title
+  if(rd.title){
+    const titleLen=rd.title.length;
+    html+=`<div class="research-card"><div class="rc-head"><span class="rc-label">🏷 Suggested eBay Title</span><div style="display:flex;gap:5px;align-items:center">${charPill(titleLen,80)}${copyBtn(rd.title)}${refineBtn('Please revise the eBay title: ')}</div></div><div class="rc-body"><div class="title-display">${esc(rd.title)}</div><div class="char-count ${titleLen>80?'over':''}">${titleLen}/80 characters${titleLen>80?' — over limit, needs trimming':''}</div></div></div>`;
+  }
+
+  // Value
+  if(rd.value){
+    const note=rd.value.split('\n').slice(1).join(' ').trim();
+    html+=`<div class="research-card"><div class="rc-head"><span class="rc-label">💰 Estimated Value</span>${refineBtn('The value estimate needs adjustment because: ')}</div><div class="rc-body">${valMatch?`<div class="value-grid"><div class="val-box"><div class="vl">Low</div><div class="vv">$${valMatch[1]}</div></div><div class="val-box"><div class="vl">Mid</div><div class="vv">$${valMatch[2]}</div></div><div class="val-box"><div class="vl">High</div><div class="vv">$${valMatch[3]}</div></div></div>`:''} ${note?`<p style="font-size:.8rem;color:var(--muted);line-height:1.6;margin-top:4px;">${esc(note)}</p>`:''}</div></div>`;
+  }
+
+  // Search tips
+  if(rd.searchTips){
+    html+=`<div class="research-card"><div class="rc-head"><span class="rc-label">🔎 eBay Search Strings to Verify Comps</span></div><div class="rc-body"><p>${esc(rd.searchTips)}</p></div></div>`;
+  }
+
+  // Chat
+  html+=`<div class="chat-section"><div class="chat-section-label">💬 Refine with Chat — correct materials, era, identification, or anything that looks off</div><div class="chat-history" id="chatHistory"></div><div class="chat-input-row"><textarea id="chatInput" placeholder="e.g. This is actually sterling silver, not silver plate. It has a hallmark on the back." rows="2" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat();}"></textarea><button class="chat-send-btn" id="chatSendBtn" onclick="sendChat()">Send</button></div></div>`;
+  // Only show "Generate" button if campaign hasn't been generated yet
+  const _campOut=document.getElementById('out');
+  const _campHasContent=_campOut&&_campOut.querySelector('.plat-section');
+  if(!_campHasContent){
+    html+=`<hr class="divider"><div style="text-align:center;padding:4px 0 8px;"><p style="font-size:.68rem;color:var(--muted);margin-bottom:10px;font-family:'DM Mono',monospace;letter-spacing:.06em;text-transform:uppercase;">Happy with the research? Build the campaign.</p><button class="gen-btn" style="width:100%;max-width:320px;" onclick="generateFromResearch()">Generate Full Campaign →</button></div>`;
+  }
+  // Show research in its own panel above campaign output
+  const resOut=document.getElementById('researchOut');
+  if(resOut){resOut.innerHTML=html;resOut.style.display='block';}
+  renderChatHistory();
+  // Only scroll to research if campaign isn't showing yet
+  if(!_campHasContent&&window.innerWidth<860){setTimeout(()=>{resOut?.scrollIntoView({behavior:'smooth',block:'start'});},100);}
+}
+
+function renderChatHistory(){
+  const el=document.getElementById('chatHistory');
+  if(!el)return;
+  if(!chatHistory.length){el.innerHTML='<div style="font-size:.75rem;color:var(--muted);font-style:italic;text-align:center;padding:8px 0;">Correct the material, era, identification, or anything that looks off.</div>';return;}
+  el.innerHTML=chatHistory.map(m=>`<div class="chat-msg ${m.role}"><div class="chat-role">${m.role==='user'?'You':'Research'}</div><div class="chat-bubble">${esc(m.content)}</div></div>`).join('');
+  el.scrollTop=el.scrollHeight;
+}
+
+function preFillChat(text){
+  const inp=document.getElementById('chatInput');
+  if(inp){inp.value=text;inp.focus();inp.setSelectionRange(text.length,text.length);}
+  document.querySelector('.chat-section')?.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+async function sendChat(){
+  const inp=document.getElementById('chatInput');
+  const msg=inp?.value.trim();
+  if(!msg)return;
+  if(!researchData){alert('Run Research first.');return;}
+  const sendBtn=document.getElementById('chatSendBtn');
+  if(sendBtn)sendBtn.disabled=true;
+  inp.value='';
+  chatHistory.push({role:'user',content:msg});
+  renderChatHistory();
+  const inp2=getInputs();
+  const systemMsg=`You are an expert vintage and antique appraiser helping a reseller refine item research. The seller is correcting or asking follow-up questions.
+
+Current research:
+IDENTIFICATION: ${researchData.identification}
+SUGGESTED EBAY TITLE: ${researchData.title}
+VALUE: ${researchData.value}
+
+Item: ${inp2.name||'not provided'} | ${inp2.cat||''} | ${inp2.era||''} | Condition: ${inp2.cond} | Measurements: ${inp2.meas||'not provided'} | Notes: ${inp2.notes||'none'}
+
+When the seller corrects something, provide updated sections using these headers: ---IDENTIFICATION---, ---EBAY_TITLE---, ---VALUE---. Only include sections that need updating. End with a brief confirmation of what changed.`;
+
+  const messages=[...chatHistory.slice(0,-1).map(m=>({role:m.role,content:m.content})),{role:'user',content:msg}];
+  try{
+    const apiKey=document.getElementById('apiKey').value.trim();
+    const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:2000,system:systemMsg,messages})});
+    const data=await res.json();
+    if(data.error)throw new Error(data.error.message);
+    const reply=(data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('');
+    chatHistory.push({role:'assistant',content:reply});
+    const upd={identification:ex('IDENTIFICATION',reply),title:ex('EBAY_TITLE',reply),value:ex('VALUE',reply)};
+    Object.keys(upd).forEach(k=>{if(upd[k])researchData[k]=upd[k];});
+    researchData._chatMode=true;
+    renderResearch(researchData);
+  }catch(e){chatHistory.push({role:'assistant',content:'Error: '+e.message});renderChatHistory();}
+  if(sendBtn)sendBtn.disabled=false;
+}
+
+// ============================================================
+// CAMPAIGN GENERATION
+// ============================================================
+async function generateOnly(){
+  const inp=getInputs();
+  if(!inp.name){alert('Please enter an item name.');return;}
+  if(!inp.plats.length){alert('Please select at least one platform.');return;}
+  setBtns(true);
+  // No research — clear both panels
+  const _ro=document.getElementById('researchOut');if(_ro){_ro.innerHTML='';_ro.style.display='none';}
+  document.getElementById('out').innerHTML='<div class="loading"><div class="dots"><span></span><span></span><span></span></div><p>Writing your campaign...</p></div>';
+  scrollToOutput();
+  await runCampaignGen(inp,null);setBtns(false);
+}
+
+async function generateFromResearch(){
+  const inp=getInputs();
+  if(!inp.plats.length){alert('Please select at least one platform.');return;}
+  setBtns(true);document.getElementById('out').innerHTML='<div class="loading"><div class="dots"><span></span><span></span><span></span></div><p>Writing your campaign...</p></div>';scrollToOutput();
+  await runCampaignGen(inp,researchData);setBtns(false);
+}
+
+async function runBoth(){
+  const inp=getInputs();
+  if(!inp.name&&!photos.length){alert('Enter item name or add at least one photo.');return;}
+  if(!inp.plats.length){alert('Please select at least one platform.');return;}
+  setBtns(true);
+  // Show step 1 loading in research panel
+  const _rOut=document.getElementById('researchOut');
+  if(_rOut){_rOut.innerHTML='<div class="loading"><div class="dots"><span></span><span></span><span></span></div><p>Identifying item...</p><div class="sub">Step 1 of 2</div></div>';_rOut.style.display='block';}
+  document.getElementById('out').innerHTML='';
+  scrollToOutput();
+  const rContent=[...buildPhotoContent()];
+  const hasMeas=inp.meas&&inp.meas.trim();const hasNotes=inp.notes&&inp.notes.trim();
+  rContent.push({type:'text',text:buildResearchPrompt(inp,hasMeas,hasNotes)});
+  try{
+    const rRaw=await callClaude('You are an expert vintage and antique appraiser.',rContent,4000);
+    researchData=parseResearch(rRaw);
+    // Render research results in top panel immediately
+    if(researchData&&researchData.identification) renderResearch(researchData);
+  }catch(e){researchData=null;}
+  // Show campaign loading in bottom panel (research stays visible above)
+  document.getElementById('out').innerHTML='<div class="loading"><div class="dots"><span></span><span></span><span></span></div><p>Writing your campaign...</p><div class="sub">Step 2 of 2</div></div>';
+  await runCampaignGen(inp,researchData);setBtns(false);
+}
+
+async function runCampaignGen(inp,rd){
+  const content=[...buildPhotoContent()];
+  const itemCtx=rd?`RESEARCH RESULTS:\nIdentification: ${rd.identification}\neBay Title: ${rd.title}\nValue: ${rd.value.split('\n')[0]}`:`ITEM:\n- Name: ${inp.name}\n- Category: ${inp.cat||'Collectible'}\n- Era: ${inp.era||'Vintage'}\n- Condition: ${inp.cond}`;
+  const sys=`You are the voice behind Winters Memory Market LLC. Write social media content that sounds human, grounded, and quietly knowledgeable.
+VOICE RULES: Storyteller tone. Open with a specific detail, moment, or question. No hype. Banned: "Amazing!", "Must-have!", "One of a kind!", "Just listed!", "Don't miss out", "Rare find!", "Grab it". Max 2-3 emojis. 100-150 words for Instagram and Facebook. CTA feels like an invitation, not a pitch. Varied sentence rhythm.`;
+  const usr=`${photos.length ? photos.length+' photo(s) attached.\n\n' : ''}${itemCtx}
+Condition: ${inp.cond}${inp.notes?' — informed by: '+inp.notes:''}
+Measurements: ${inp.meas||'not provided'}
+List Price: ${inp.price?'$'+inp.price:'not specified'}
+Platforms: ${inp.plats.join(', ')}
+
+${rd?`RESEARCH FINDINGS:\nIdentification: ${rd.identification}\nSuggested eBay Title: ${rd.title||'(not yet generated)'}\nValue: ${rd.value?rd.value.split('\n')[0]:'(not yet generated)'}\n`:''}  
+Use EXACTLY these headers:
+${inp.plats.includes('ebay')?`---EBAY_CAMPAIGN---
+TITLE: [eBay title, max 80 chars, keyword-front-loaded, no ALL CAPS, no filler words]
+DESCRIPTION: [140-180 words following description field order. Condition from "${inp.cond}" + photos. ${inp.meas?'Measurements exactly: '+inp.meas+'.':'No measurements.'} End with: Ships safely and swiftly.]
+
+`:''}${inp.plats.includes('etsy')?`---ETSY_CAMPAIGN---
+TITLE: [Etsy title, max 140 chars, conversational and SEO-rich, spell out item name fully]
+DESCRIPTION: [160-200 words, story-driven and warm, follow description field order. ${inp.meas?'Exact measurements: '+inp.meas+'.':'Omit measurements.'} End with: Ships safely and swiftly.]
+
+`:''}${inp.plats.includes('facebook')?`---FACEBOOK_CAMPAIGN---
+TITLE: [Facebook title, max 60 chars, item name${inp.price?' — $'+inp.price:''}]
+POST: [80-120 words, casual and human, price upfront if available, condition naturally, ${inp.meas?'measurements: '+inp.meas+',':''} invite to DM${inp.ebayUrl?', end with: Full listing at '+inp.ebayUrl:''}]
+
+`:''}${inp.plats.includes('instagram')?`---INSTAGRAM_CAMPAIGN---
+CAPTION: [100-150 words, storyteller tone, open with specific detail or question, no hype, max 2-3 emojis, natural CTA ending with "Link in bio". Banned: Amazing!, Must-have!, Just listed!, Rare find!]
+HASHTAGS: [20-25 hashtags mixing niche collector and broad vintage tags]
+
+`:''}${inp.plats.includes('pinterest')?`---PINTEREST_CAMPAIGN---
+TITLE: [Pinterest title, max 100 chars, keyword-optimized for search]
+DESCRIPTION: [80-120 words, keyword-rich, no hashtags${inp.meas?', measurements: '+inp.meas:''}${inp.ebayUrl?', end with: See full listing at '+inp.ebayUrl:''}]
+
+`:''}---PRICING---
+${rd?rd.value.split('\n')[0]+'\n'+(rd.value.split('\n').slice(1).join(' ').trim()||''):'Low: $X | Mid: $X | High: $X\nOne sentence on market timing.'}
+
+---POSTING_ARC---
+Multi-week posting schedule, at least 8 weeks. Each row must be EXACTLY: [week number] | [day] | [platform] | [action]. Numbers only for week — no word 'Week'. No header row. No example row. Just data rows. Cover: launch (wk 1-2), re-engagement (wk 3-4), refresh (wk 5-8). End with a price-drop timing suggestion on its own line starting with Note:
+
+---ANALYTICS_TIPS---
+5 platform-specific analytics tips for this item type. Specific — mention best times, content angles, engagement tactics.`;
+  content.push({type:'text',text:usr});
+  try{const raw=await callClaude(sys,content,2500);renderCampaign(raw,inp.name,inp.plats,rd);}
+  catch(e){document.getElementById('out').innerHTML='<div class="empty"><div class="ei">⚠</div><h2>Generation failed</h2><p>'+esc(e.message)+'</p></div>';}
+}
+
+function renderCampaign(raw,itemName,plats,rd){
+  function copyBtn(text){const id=storeClip(text);return `<button class="cp-btn" onclick="cpId(this,'${id}')">Copy</button>`;}
+  function charPill(len,max){return `<span class="char-pill ${len>max?'over':''}">${len}/${max}</span>`;}
+  function parseTD(raw){
+    // Extract TITLE: and body (DESCRIPTION: / POST: / CAPTION:) sub-headers
+    const titleMatch=raw.match(/^TITLE:\s*(.+)$/im);
+    const bodyMatch=raw.match(/^(?:DESCRIPTION|POST|CAPTION):\s*([\s\S]+?)(?=^HASHTAGS:|$)/im);
+    const hashMatch=raw.match(/^HASHTAGS:\s*([\s\S]+)/im);
+    const title=titleMatch?titleMatch[1].trim():'';
+    let body=bodyMatch?bodyMatch[1].trim():raw.replace(/^TITLE:.*$/im,'').trim();
+    if(hashMatch)body=body+'\n\n'+hashMatch[1].trim();
+    return{title,body};
+  }
+  let html=`<div class="rh"><h2>${esc(itemName||'Campaign')}</h2><div class="il">Full campaign · all platforms</div></div>`;
+  // Research is shown above in #researchOut — no banner needed in campaign
+  // Add divider label if research is showing
+  const _roCheck=document.getElementById('researchOut');
+  if(_roCheck&&_roCheck.style.display!=='none'){
+    html=`<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;"><div style="flex:1;height:1px;background:var(--border);"></div><span style="font-family:'DM Mono',monospace;font-size:.58rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);white-space:nowrap;">Campaign Output</span><div style="flex:1;height:1px;background:var(--border);"></div></div>`+html;
+  }
+  const platDefs=[
+    {key:'ebay',    tag:'EBAY_CAMPAIGN',      icon:'🛒',name:'eBay',           titleMax:80, hasTitle:true},
+    {key:'etsy',    tag:'ETSY_CAMPAIGN',      icon:'🧵',name:'Etsy',           titleMax:140,hasTitle:true},
+    {key:'facebook',tag:'FACEBOOK_CAMPAIGN',  icon:'👥',name:'Facebook Groups',titleMax:60, hasTitle:true},
+    {key:'instagram',tag:'INSTAGRAM_CAMPAIGN',icon:'📸',name:'Instagram',      titleMax:null,hasTitle:false},
+    {key:'pinterest',tag:'PINTEREST_CAMPAIGN',icon:'📌',name:'Pinterest',      titleMax:100,hasTitle:true},
+  ];
+  platDefs.forEach(({key,tag,icon,name,titleMax,hasTitle})=>{
+    if(!plats.includes(key))return;
+    const rc=ex(tag,raw);if(!rc)return;
+    const {title,body}=hasTitle?parseTD(rc):{title:'',body:rc};
+    html+=`<div class="plat-section"><div class="plat-section-head"><span class="plat-section-icon">${icon}</span><span class="plat-section-name">${name}</span></div>`;
+    if(hasTitle&&title)html+=`<div class="plat-block"><div class="plat-block-label"><span>Title</span><div style="display:flex;gap:5px;align-items:center">${titleMax?charPill(title.length,titleMax):''}${copyBtn(title)}</div></div><div class="plat-block-text">${esc(title)}</div></div>`;
+    if(body){const bl=key==='instagram'?'Caption + Hashtags':key==='facebook'?'Post Body':'Description';html+=`<div class="plat-block"><div class="plat-block-label"><span>${bl}</span>${copyBtn(body)}</div><div class="plat-block-text">${esc(body)}</div></div>`;}
+    html+=`</div>`;
+  });
+  const pr=ex('PRICING',raw);
+  if(pr)html+=`<div class="plat-section"><div class="plat-section-head"><span class="plat-section-icon">💰</span><span class="plat-section-name">Pricing</span></div><div class="plat-block"><div class="plat-block-text">${esc(pr)}</div></div></div>`;
+  const arc=ex('POSTING_ARC',raw);
+  if(arc){
+    // Filter junk rows — skip headers and dash lines
+    const SKIP=/^[-\u2013\u2014\s|]+$|^\s*week\s*[#|]|^\s*week\s+day/i;
+    const rows=arc.split('\n').filter(l=>{
+      const t=l.trim();
+      return t && !SKIP.test(t) && t.split('|').length>=3;
+    }).map(l=>{
+      const p=l.split('|').map(s=>s.replace(/\*\*/g,'').trim());
+      // Skip header-like rows
+      if(/^week$/i.test(p[0])||/^day$/i.test(p[1])||/^platform$/i.test(p[2]))return'';
+      // Parse: [week] | [day] | [platform] | [action]
+      // Week: strip any non-numeric prefix
+      const wk=p[0].replace(/^[^0-9]*/,'').trim()||p[0].trim()||'?';
+      const day=p[1]||'';
+      const plat=p[2]||'';
+      // Action is everything from p[3] onward joined
+      const action=p.slice(3).join(' ').trim();
+      // Skip if week looks like a word (header row got through)
+      if(/^[a-z#]+$/i.test(wk)&&wk.length>2)return'';
+      if(!action)return'';
+      return '<tr><td><span class="wk-badge">Wk '+esc(wk)+'</span></td><td>'+esc(day)+'</td><td><span class="plat-badge2">'+esc(plat)+'</span></td><td style="font-size:.78rem;line-height:1.5;color:var(--ink);">'+esc(action)+'</td></tr>';
+    }).filter(Boolean).join('');
+    // Grab price drop note
+    const noteMatch=arc.match(/(?:price.drop|note|suggest)[^\n]+/gi);
+    const note=noteMatch?noteMatch.map(n=>n.replace(/\*\*/g,'')).join(' '):'';
+    html+=`<div class="plat-section"><div class="plat-section-head"><span class="plat-section-icon">📅</span><span class="plat-section-name">Multi-Week Posting Arc</span></div><div class="plat-block" style="padding:0;overflow-x:auto"><table class="arc-table"><thead><tr><th>Week</th><th>Day</th><th>Platform</th><th>Action</th></tr></thead><tbody>${rows}</tbody></table>${note?'<div style="padding:10px 14px;font-size:.78rem;color:var(--muted);line-height:1.5;border-top:1px solid var(--border);">'+esc(note)+'</div>':''}</div></div>`;
+  }
+  const tips=ex('ANALYTICS_TIPS',raw);
+  if(tips){const tl=tips.split('\n').filter(l=>l.trim()).slice(0,5);html+=`<div class="plat-section"><div class="plat-section-head"><span class="plat-section-icon">✦</span><span class="plat-section-name">Analytics Tips</span></div><div class="plat-block"><ul class="tips-list">${tl.map((t,i)=>`<li><span class="tn2">${i+1}</span><span>${esc(t.replace(/^\d+[\.\)]\s*/,''))}</span></li>`).join('')}</ul></div></div>`;}
+  // Add Start Campaign button at bottom
+  html+=`<hr class="divider"><div style="padding:4px 0 8px;">
+    <p style="font-size:.68rem;color:var(--muted);margin-bottom:8px;font-family:'DM Mono',monospace;letter-spacing:.06em;text-transform:uppercase;">Ready to activate this campaign?</p>
+    <button class="start-camp-btn" id="startCampBtn" onclick="startCampaign()">📋 Start Campaign — Track This Item</button>
+    <div id="startCampStatus" style="font-family:'DM Mono',monospace;font-size:.62rem;text-align:center;margin-top:6px;min-height:16px;"></div>
+  </div>`;
+  document.getElementById('out').innerHTML=html;scrollToOutput();
+  // Store current campaign data for saving
+  window._lastCampaignRaw=raw;
+  window._lastCampaignPlats=plats;
+}
+
+// ============================================================
+// PHOTO EDITOR
+// ============================================================
+const BG_STYLES=[
+  {id:'aged-paper',   label:'Aged Paper',     suggest:['ephemera','postcard','book','photo','stamp','trade card','victorian'],draw:(ctx,w,h)=>{const g=ctx.createLinearGradient(0,0,w,h);g.addColorStop(0,'#f2e8d5');g.addColorStop(.5,'#ede0c4');g.addColorStop(1,'#e8d5a8');ctx.fillStyle=g;ctx.fillRect(0,0,w,h);for(let i=0;i<6000;i++){ctx.fillStyle=`rgba(${Math.random()>.5?80:160},${Math.random()>.5?60:120},20,${Math.random()*.08})`;ctx.fillRect(Math.random()*w,Math.random()*h,Math.random()*3,Math.random()*3);}const vg=ctx.createRadialGradient(w/2,h/2,h*.3,w/2,h/2,h*.8);vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(80,50,10,.25)');ctx.fillStyle=vg;ctx.fillRect(0,0,w,h);}},
+  {id:'dark-velvet',  label:'Dark Velvet',    suggest:['jewelry','brooch','pin','watch','ring','necklace','bracelet','cameo','pendant'],draw:(ctx,w,h)=>{const g=ctx.createLinearGradient(0,0,w,h);g.addColorStop(0,'#1a1020');g.addColorStop(.5,'#120c18');g.addColorStop(1,'#0e0810');ctx.fillStyle=g;ctx.fillRect(0,0,w,h);for(let i=0;i<4000;i++){ctx.fillStyle=`rgba(180,140,220,${Math.random()*.04})`;ctx.fillRect(Math.random()*w,Math.random()*h,1,1);}const vg=ctx.createRadialGradient(w/2,h/2,0,w/2,h/2,w*.7);vg.addColorStop(0,'rgba(80,40,100,.15)');vg.addColorStop(1,'rgba(0,0,0,.5)');ctx.fillStyle=vg;ctx.fillRect(0,0,w,h);}},
+  {id:'rustic-wood',  label:'Rustic Wood',    suggest:['tin','farm','tool','advertising','automotive','railroad','hunting','equestrian','militaria'],draw:(ctx,w,h)=>{ctx.fillStyle='#6b4423';ctx.fillRect(0,0,w,h);for(let i=0;i<40;i++){ctx.strokeStyle=`rgba(${Math.random()>.5?40:100},${Math.random()>.5?20:50},10,${.15+Math.random()*.2})`;ctx.lineWidth=1+Math.random()*2;ctx.beginPath();const y=Math.random()*h;ctx.moveTo(0,y);ctx.bezierCurveTo(w*.3,y+Math.random()*20-10,w*.7,y+Math.random()*20-10,w,y+Math.random()*10-5);ctx.stroke();}const vg=ctx.createRadialGradient(w/2,h/2,h*.2,w/2,h/2,h*.8);vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(0,0,0,.35)');ctx.fillStyle=vg;ctx.fillRect(0,0,w,h);}},
+  {id:'linen',        label:'Linen',          suggest:['clothing','textile','button','pattern','craft','sewing'],draw:(ctx,w,h)=>{ctx.fillStyle='#f0ebe0';ctx.fillRect(0,0,w,h);ctx.strokeStyle='rgba(160,140,100,.12)';ctx.lineWidth=1;for(let x=0;x<w;x+=4){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,h);ctx.stroke();}for(let y=0;y<h;y+=4){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke();}const vg=ctx.createRadialGradient(w/2,h/2,h*.25,w/2,h/2,h*.75);vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(80,60,20,.12)');ctx.fillStyle=vg;ctx.fillRect(0,0,w,h);}},
+  {id:'slate',        label:'Dark Slate',     suggest:['coin','medal','military','political','sports','record','cassette','video game'],draw:(ctx,w,h)=>{const g=ctx.createLinearGradient(0,0,w,h);g.addColorStop(0,'#2c3240');g.addColorStop(1,'#1a1e28');ctx.fillStyle=g;ctx.fillRect(0,0,w,h);for(let i=0;i<3000;i++){ctx.fillStyle=`rgba(200,210,255,${Math.random()*.03})`;ctx.fillRect(Math.random()*w,Math.random()*h,1,1);}}},
+  {id:'warm-marble',  label:'Warm Marble',    suggest:['ceramic','glass','art','figurine','porcelain','pottery'],draw:(ctx,w,h)=>{ctx.fillStyle='#f5f0e8';ctx.fillRect(0,0,w,h);for(let i=0;i<12;i++){const x1=Math.random()*w,y1=Math.random()*h;const g=ctx.createLinearGradient(x1,y1,x1+Math.random()*200-100,y1+Math.random()*200-100);g.addColorStop(0,'rgba(180,160,120,0)');g.addColorStop(.5,`rgba(180,160,120,${.04+Math.random()*.06})`);g.addColorStop(1,'rgba(180,160,120,0)');ctx.strokeStyle=g;ctx.lineWidth=1+Math.random()*2;ctx.beginPath();ctx.moveTo(x1,y1);ctx.bezierCurveTo(x1+Math.random()*w*.4,y1+Math.random()*h*.3,x1+Math.random()*w*.4,y1+Math.random()*h*.3,x1+Math.random()*w*.6,y1+Math.random()*h*.5);ctx.stroke();}}},
+  {id:'brass-leather',label:'Brass & Leather',suggest:['watch','compass','camera','optical','scientific','navigation'],draw:(ctx,w,h)=>{const g=ctx.createLinearGradient(0,0,w,h);g.addColorStop(0,'#3d2b1a');g.addColorStop(.4,'#4a3320');g.addColorStop(1,'#2e1f10');ctx.fillStyle=g;ctx.fillRect(0,0,w,h);for(let i=0;i<30;i++){ctx.strokeStyle=`rgba(200,160,60,${.05+Math.random()*.08})`;ctx.lineWidth=Math.random()*2;ctx.beginPath();const y=Math.random()*h;ctx.moveTo(0,y);ctx.lineTo(w,y+Math.random()*10-5);ctx.stroke();}const vg=ctx.createRadialGradient(w*.3,h*.3,0,w*.5,h*.5,w*.7);vg.addColorStop(0,'rgba(200,160,60,.08)');vg.addColorStop(1,'rgba(0,0,0,.2)');ctx.fillStyle=vg;ctx.fillRect(0,0,w,h);}},
+  {id:'soft-black',   label:'Soft Black',     suggest:['poster','memorabilia','entertainment','disney','comic','toy','doll'],draw:(ctx,w,h)=>{const g=ctx.createRadialGradient(w/2,h/2,0,w/2,h/2,w*.8);g.addColorStop(0,'#2a2a2a');g.addColorStop(1,'#0d0d0d');ctx.fillStyle=g;ctx.fillRect(0,0,w,h);}},
+  {id:'cream-lace',   label:'Cream & Lace',   suggest:['souvenir','christmas','halloween','holiday','glass','housewares'],draw:(ctx,w,h)=>{ctx.fillStyle='#faf6ef';ctx.fillRect(0,0,w,h);ctx.strokeStyle='rgba(200,185,155,.2)';ctx.lineWidth=1;for(let x=0;x<w;x+=20){for(let y=0;y<h;y+=20){ctx.beginPath();ctx.arc(x,y,6,0,Math.PI*2);ctx.stroke();}}const vg=ctx.createRadialGradient(w/2,h/2,h*.2,w/2,h/2,h*.8);vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(120,90,40,.1)');ctx.fillStyle=vg;ctx.fillRect(0,0,w,h);}},
+];
+
+let currentBgMode='white', selectedStyle=BG_STYLES[0].id;
+
+function initStyleGrid(){
+  const grid=document.getElementById('styleGrid');if(!grid)return;
+  grid.innerHTML=BG_STYLES.map(s=>`<div class="style-swatch ${s.id===selectedStyle?'active':''}" id="swatch-${s.id}" onclick="selectStyle('${s.id}')"><canvas width="80" height="80"></canvas><div class="sw-label">${s.label}</div></div>`).join('');
+  BG_STYLES.forEach(s=>{const c=grid.querySelector('#swatch-'+s.id+' canvas');if(c){const ctx=c.getContext('2d');s.draw(ctx,80,80);}});
+}
+function selectStyle(id){selectedStyle=id;document.querySelectorAll('.style-swatch').forEach(el=>el.classList.remove('active'));document.getElementById('swatch-'+id)?.classList.add('active');}
+function setBgMode(mode){currentBgMode=mode;document.getElementById('bgm-white').classList.toggle('active',mode==='white');document.getElementById('bgm-social').classList.toggle('active',mode==='social');document.getElementById('bgWhitePanel').style.display=mode==='white'?'':'none';document.getElementById('bgSocialPanel').style.display=mode==='social'?'':'none';if(mode==='social')initStyleGrid();}
+
+async function suggestStyle(){
+  const identification=researchData?.identification||'';const itemName=document.getElementById('iName').value.trim();const combined=(identification+' '+itemName).toLowerCase();const note=document.getElementById('suggestNote');
+  let best=BG_STYLES[0],bestScore=0;
+  BG_STYLES.forEach(s=>{const score=s.suggest.filter(kw=>combined.includes(kw)).length;if(score>bestScore){bestScore=score;best=s;}});
+  if(bestScore===0){try{const apiKey=document.getElementById('apiKey').value.trim();if(apiKey){const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:50,system:'You are a visual styling expert for vintage photography.',messages:[{role:'user',content:`Item: "${identification||itemName}". Best background from: ${BG_STYLES.map(s=>s.id).join(', ')}. Reply with just the style ID.`}]})});const data=await res.json();const sug=(data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('').trim().toLowerCase();const match=BG_STYLES.find(s=>sug.includes(s.id));if(match)best=match;}}catch(e){}}
+  selectStyle(best.id);note.textContent='✦ Suggested "'+best.label+'" for your item. Tap any swatch to override.';note.classList.add('visible');
+  document.querySelectorAll('.sw-suggest').forEach(el=>el.remove());const sw=document.getElementById('swatch-'+best.id);if(sw){const tag=document.createElement('div');tag.className='sw-suggest';tag.textContent='✦';sw.appendChild(tag);}
+}
+
+function sv(el,vid){document.getElementById(vid).textContent=el.value;}
+function getAdj(){return{br:+document.getElementById('sl-br').value,co:+document.getElementById('sl-co').value,sa:+document.getElementById('sl-sa').value,wa:+document.getElementById('sl-wa').value,sh:+document.getElementById('sl-sh').value};}
+function resetAll(){[['sl-br','vbr'],['sl-co','vco'],['sl-sa','vsa'],['sl-wa','vwa'],['sl-sh','vsh']].forEach(([s,v])=>{document.getElementById(s).value=0;document.getElementById(v).textContent='0';});}
+function clamp(v){return Math.max(0,Math.min(255,Math.round(v)));}
+
+function applyAdj(ctx,w,h,adj){
+  const id=ctx.getImageData(0,0,w,h);const d=id.data;
+  for(let i=0;i<d.length;i+=4){let r=d[i],g=d[i+1],b=d[i+2];if(adj.wa!==0){r=clamp(r+adj.wa*1.5);b=clamp(b-adj.wa);}if(adj.br!==0){const bf=adj.br*1.8;r=clamp(r+bf);g=clamp(g+bf);b=clamp(b+bf);}if(adj.co!==0){const cf=(259*(adj.co+255))/(255*(259-adj.co));r=clamp(cf*(r-128)+128);g=clamp(cf*(g-128)+128);b=clamp(cf*(b-128)+128);}if(adj.sa!==0){const gr=0.2126*r+0.7152*g+0.0722*b,sf=1+adj.sa/100;r=clamp(gr+sf*(r-gr));g=clamp(gr+sf*(g-gr));b=clamp(gr+sf*(b-gr));}d[i]=r;d[i+1]=g;d[i+2]=b;}ctx.putImageData(id,0,0);
+  if(adj.sh>0){const bc=document.createElement('canvas');bc.width=w;bc.height=h;const bx=bc.getContext('2d');bx.filter=`blur(${Math.max(.4,adj.sh/80)}px)`;bx.drawImage(ctx.canvas,0,0);const o=ctx.getImageData(0,0,w,h),bl=bx.getImageData(0,0,w,h);const str=adj.sh/200;for(let i=0;i<o.data.length;i+=4){o.data[i]=clamp(o.data[i]+str*(o.data[i]-bl.data[i])*3);o.data[i+1]=clamp(o.data[i+1]+str*(o.data[i+1]-bl.data[i+1])*3);o.data[i+2]=clamp(o.data[i+2]+str*(o.data[i+2]-bl.data[i+2])*3);}ctx.putImageData(o,0,0);}
+}
+
+function centerOnWhite(srcImg,tw,th){
+  const c=document.createElement('canvas');c.width=tw;c.height=th;const ctx=c.getContext('2d');ctx.fillStyle='#ffffff';ctx.fillRect(0,0,tw,th);
+  const sw=srcImg.naturalWidth||srcImg.width,sh=srcImg.naturalHeight||srcImg.height;const pad=tw*.05,aW=tw-pad*2,aH=th-pad*2;
+  let dw,dh;if(sw/sh>aW/aH){dw=aW;dh=dw/(sw/sh);}else{dh=aH;dw=dh*(sw/sh);}
+  ctx.shadowColor='rgba(0,0,0,.12)';ctx.shadowBlur=tw*.02;ctx.shadowOffsetY=tw*.01;
+  ctx.drawImage(srcImg,(tw-dw)/2,(th-dh)/2,dw,dh);ctx.shadowColor='transparent';return c;
+}
+
+async function buildExport(srcImg,spec,adj){
+  const c=document.createElement('canvas');c.width=spec.w;c.height=spec.h;const ctx=c.getContext('2d');
+  if(spec.marketplace){
+    const wh=centerOnWhite(srcImg,spec.w,spec.h);ctx.drawImage(wh,0,0);
+  } else {
+    const style=BG_STYLES.find(s=>s.id===selectedStyle)||BG_STYLES[0];style.draw(ctx,spec.w,spec.h);
+    const sw=srcImg.naturalWidth||srcImg.width,sh=srcImg.naturalHeight||srcImg.height;
+    const maxDim=Math.min(spec.w,spec.h)*.78,scale=Math.min(maxDim/sw,maxDim/sh);
+    const dw=sw*scale,dh=sh*scale;
+    ctx.shadowColor='rgba(0,0,0,.35)';ctx.shadowBlur=30;ctx.shadowOffsetY=8;
+    ctx.drawImage(srcImg,(spec.w-dw)/2,(spec.h-dh)/2,dw,dh);ctx.shadowColor='transparent';
+  }
+  applyAdj(ctx,spec.w,spec.h,adj);return c;
+}
+
+async function edPreview(){
+  if(!photos.length)return;
+  const ph=photos[edIdx];if(!ph||!ph.img)return;
+  const adj=getAdj();
+  document.getElementById('edOut').innerHTML='<div class="rh"><h2>Photo '+(edIdx+1)+' Exports</h2><div class="il">Processing...</div></div><div class="loading"><div class="dots"><span></span><span></span><span></span></div><p>Building exports...</p></div>';
+
+  const EXPORT_SPECS=[
+    {key:'ebay',         label:'eBay',              icon:'🛒',w:1600,h:1600,desc:'1:1 · White BG',    marketplace:true},
+    {key:'etsy',         label:'Etsy',               icon:'🧵',w:2000,h:2000,desc:'1:1 · White BG',    marketplace:true},
+    {key:'instagram_sq', label:'Instagram Square',   icon:'📸',w:1080,h:1080,desc:'1:1 · Themed BG',   marketplace:false},
+    {key:'instagram_45', label:'Instagram Portrait', icon:'📸',w:1080,h:1350,desc:'4:5 · Themed BG',   marketplace:false},
+    {key:'facebook',     label:'Facebook',           icon:'👥',w:1200,h:630, desc:'1.91:1 · Themed BG', marketplace:false},
+    {key:'pinterest',    label:'Pinterest',          icon:'📌',w:1000,h:1500,desc:'2:3 · Themed BG',   marketplace:false},
+  ];
+
+  document.getElementById('edOut').innerHTML='<div class="rh"><h2>Photo '+(edIdx+1)+' Exports</h2><div class="il">Clean white · themed social</div></div><div class="exp-grid" id="expGrid"></div>';
+  const grid=document.getElementById('expGrid');
+
+  for(const spec of EXPORT_SPECS){
+    const full=await buildExport(ph.img,spec,adj);
+    const pw=300,ph2=Math.round(pw*spec.h/spec.w);
+    const pv=document.createElement('canvas');pv.width=pw;pv.height=ph2;pv.getContext('2d').drawImage(full,0,0,pw,ph2);
+    const card=document.createElement('div');card.className='exp-card';
+    card.innerHTML=`<div class="ec-hd"><span class="ec-nm">${spec.icon} ${spec.label}</span><span class="ec-sp">${spec.desc}</span></div><div class="ec-bd"><div class="cv-wrap" style="height:${Math.min(ph2,200)}px"></div><button class="dl-btn">↓ Download</button></div>`;
+    card.querySelector('.cv-wrap').appendChild(pv);
+    card.querySelector('.dl-btn').addEventListener('click',()=>{const lnk=document.createElement('a');lnk.download='wmm_'+(edIdx+1)+'_'+spec.key+'.jpg';lnk.href=full.toDataURL('image/jpeg',.93);lnk.click();});
+    grid.appendChild(card);
+  }
+}
+
+// ============================================================
+// INIT
+// ============================================================
+// ============================================================
+// FIREBASE
+// ============================================================
+firebase.initializeApp({
+  apiKey:"AIzaSyAWXzKYo8gwXjub9aSMCqMzkN35dzq6o34",
+  authDomain:"ebay-tracker-88f4d.firebaseapp.com",
+  projectId:"ebay-tracker-88f4d",
+  storageBucket:"ebay-tracker-88f4d.firebasestorage.app",
+  messagingSenderId:"966740510147",
+  appId:"1:966740510147:web:cbc938cc7c93c9120aa976"
+});
+const db = firebase.firestore();
+const LLC_DATE = '2025-07-22';
+let _loadedDocId = null; // tracks if we loaded an existing item
+
+function setInvStatus(msg, color='var(--muted)'){
+  const el=document.getElementById('invStatus');
+  if(el){el.textContent=msg;el.style.color=color;}
+}
+function setLoadStatus(msg, color='var(--muted)'){
+  const el=document.getElementById('loadStatus');
+  if(el){el.textContent=msg;el.style.color=color;}
+}
+
+// ============================================================
+// ADD / UPDATE INVENTORY
+// ============================================================
+async function addToInventory(){
+  const inp=getInputs();
+  if(!inp.name){setInvStatus('Enter an item name first.','#c0392b');return;}
+  const btn=document.getElementById('invAddBtn');
+  btn.disabled=true;setInvStatus('Saving...','var(--muted)');
+
+  try{
+    const meas=[inp.measL&&inp.measL+'"',inp.measW&&inp.measW+'"',inp.measH&&inp.measH+'"'].filter(Boolean).join(' x ');
+    const dateVal=inp.date||'';
+    const era=dateVal&&dateVal>=LLC_DATE?'post':'pre';
+
+    const item={
+      name:inp.name,
+      sku:inp.sku||(inp.name.substring(0,3).toUpperCase()+'-'+Date.now()),
+      category:inp.cat||'',
+      condition:inp.cond,
+      source:inp.source||'',
+      location:inp.loc||'',
+      cost:parseFloat(inp.cost)||0,
+      list:parseFloat(inp.price)||0,
+      status:inp.status||'Unlisted',
+      date:dateVal,
+      era,
+      weight:inp.weight||'',
+      dims:inp.dims||'',
+      purchaseSource:inp.purchaseSource||'',
+      orderId:inp.orderId||'',
+      notes:inp.notes||'',
+      measurements:meas,
+      ebayUrl:inp.ebayUrl||'',
+    };
+
+    // Check for existing item by SKU to prevent duplicates
+    if(inp.sku){
+      const existing=await db.collection('inventory').where('sku','==',inp.sku).limit(1).get();
+      if(!existing.empty){
+        const docId=existing.docs[0].id;
+        await db.collection('inventory').doc(docId).update(item);
+        setInvStatus('✓ Item updated in tracker (matched by SKU)','var(--success)');
+        _loadedDocId=docId;
+        setTimeout(()=>setInvStatus(''),4000);btn.disabled=false;return;
+      }
+    }
+
+    // New item
+    const newId=Date.now()+'';
+    item.id=newId;
+    await db.collection('inventory').doc(newId).set(item);
+    _loadedDocId=newId;
+    // Show Update button for future changes
+    document.getElementById('invAddBtn').style.display='none';
+    document.getElementById('invUpdateRow').style.display='flex';
+    setInvStatus('✓ Item added to Inventory Tracker','var(--success)');
+    setTimeout(()=>setInvStatus(''),4000);
+  }catch(e){
+    setInvStatus('Error: '+e.message,'#c0392b');
+  }
+  btn.disabled=false;
+}
+
+async function updateInventoryItem(){
+  if(!_loadedDocId){setInvStatus('No item loaded — use Add instead.','#c0392b');return;}
+  const inp=getInputs();
+  if(!inp.name){setInvStatus('Enter an item name first.','#c0392b');return;}
+  const btn=document.getElementById('invUpdateBtn');
+  btn.disabled=true;setInvStatus('Updating...','var(--muted)');
+
+  try{
+    const meas=[inp.measL&&inp.measL+'"',inp.measW&&inp.measW+'"',inp.measH&&inp.measH+'"'].filter(Boolean).join(' x ');
+    const dateVal=inp.date||'';
+    const era=dateVal&&dateVal>=LLC_DATE?'post':'pre';
+
+    const item={
+      name:inp.name,sku:inp.sku||'',category:inp.cat||'',condition:inp.cond,
+      source:inp.source||'',location:inp.loc||'',cost:parseFloat(inp.cost)||0,
+      list:parseFloat(inp.price)||0,status:inp.status||'Unlisted',date:dateVal,era,
+      weight:inp.weight||'',dims:inp.dims||'',purchaseSource:inp.purchaseSource||'',
+      orderId:inp.orderId||'',notes:inp.notes||'',measurements:meas,ebayUrl:inp.ebayUrl||'',
+    };
+
+    await db.collection('inventory').doc(_loadedDocId).update(item);
+    setInvStatus('✓ Inventory item updated — no duplicate created','var(--success)');
+    setTimeout(()=>setInvStatus(''),4000);
+  }catch(e){
+    setInvStatus('Error: '+e.message,'#c0392b');
+  }
+  btn.disabled=false;
+}
+
+// ============================================================
+// LOAD FROM INVENTORY
+// ============================================================
+// ── LIVE INVENTORY SEARCH ──────────────────────────────────
+let _allInventory = []; // cached after first fetch
+let _searchTimer = null;
+let _focusedIdx = -1;
+
+async function ensureInventoryCache(){
+  if(_allInventory.length) return;
+  try{
+    const snap = await db.collection('inventory').get();
+    _allInventory = snap.docs.map(d=>({id:d.id,...d.data()}));
+  }catch(e){ console.error('inventory cache error',e); }
+}
+
+function onSearchInput(){
+  clearTimeout(_searchTimer);
+  _focusedIdx = -1;
+  const q = document.getElementById('loadInput').value.trim();
+  if(!q){ closeDropdown(); return; }
+  _searchTimer = setTimeout(()=>runSearch(q), 200);
+}
+
+function onSearchFocus(){
+  const q = document.getElementById('loadInput').value.trim();
+  if(q) runSearch(q);
+}
+
+async function runSearch(q){
+  await ensureInventoryCache();
+  const terms = q.toLowerCase().split(/\s+/).filter(Boolean);
+  const results = _allInventory.filter(item=>{
+    const haystack = [
+      item.name||'',
+      item.sku||'',
+      item.category||'',
+      item.notes||'',
+      item.purchaseSource||'',
+    ].join(' ').toLowerCase();
+    return terms.every(t => haystack.includes(t));
+  }).slice(0, 25); // cap at 25 suggestions
+  renderDropdown(results, q);
+}
+
+function renderDropdown(results, q){
+  const dd = document.getElementById('invDropdown');
+  if(!dd) return;
+  if(!results.length){
+    dd.innerHTML = '<div class="inv-dropdown-empty">No matches found</div>';
+    dd.style.display = 'block';
+    return;
+  }
+  const count = _allInventory.length;
+  let html = `<div class="inv-dropdown-count">${results.length} result${results.length>1?'s':''} of ${count} items</div>`;
+  html += results.map((item, i) => {
+    const meta = [item.sku, item.category, item.status].filter(Boolean).join(' · ');
+    return `<div class="inv-dropdown-item" data-idx="${i}" onmousedown="selectInventoryItem('${item.id}')">
+      <div class="di-name">${escHighlight(item.name||'Unnamed', q)}</div>
+      ${meta ? `<div class="di-meta">${esc(meta)}</div>` : ''}
+    </div>`;
+  }).join('');
+  dd.innerHTML = html;
+  dd.style.display = 'block';
+}
+
+function escHighlight(text, q){
+  const safe = esc(text);
+  const terms = q.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  let result = safe;
+  terms.forEach(t => {
+    const re = new RegExp('('+t.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')', 'gi');
+    result = result.replace(re, '<strong style="color:var(--amber);">$1</strong>');
+  });
+  return result;
+}
+
+function onSearchKey(e){
+  const dd = document.getElementById('invDropdown');
+  const items = dd ? dd.querySelectorAll('.inv-dropdown-item') : [];
+  if(e.key === 'ArrowDown'){
+    e.preventDefault();
+    _focusedIdx = Math.min(_focusedIdx+1, items.length-1);
+    items.forEach((el,i)=>el.classList.toggle('focused',i===_focusedIdx));
+  } else if(e.key === 'ArrowUp'){
+    e.preventDefault();
+    _focusedIdx = Math.max(_focusedIdx-1, 0);
+    items.forEach((el,i)=>el.classList.toggle('focused',i===_focusedIdx));
+  } else if(e.key === 'Enter' && _focusedIdx >= 0){
+    e.preventDefault();
+    const focused = items[_focusedIdx];
+    if(focused) focused.dispatchEvent(new MouseEvent('mousedown'));
+  } else if(e.key === 'Escape'){
+    closeDropdown();
+  }
+}
+
+function closeDropdown(){
+  const dd = document.getElementById('invDropdown');
+  if(dd) dd.style.display = 'none';
+}
+
+function selectInventoryItem(docId){
+  const item = _allInventory.find(i=>i.id===docId);
+  if(!item){ setLoadStatus('Item not found','#c0392b'); return; }
+  populateFormFromItem(item, docId);
+}
+
+function populateFormFromItem(item, docId){
+  const set=(id,val)=>{const el=document.getElementById(id);if(el)el.value=val||'';};
+  set('iName',item.name);
+  set('iSku',item.sku);
+  set('iCat',item.category);
+  set('iCond',item.condition);
+  set('iSource',item.source);
+  set('iEra','');
+  set('iLoc',item.location);
+  set('iCost',item.cost||'');
+  set('iPrice',item.list||'');
+  set('iStatus',item.status);
+  set('iDate',item.date);
+  set('iWeight',item.weight);
+  set('iDims',item.dims);
+  set('iPurchaseSource',item.purchaseSource);
+  set('iOrderId',item.orderId);
+  set('iNotes',item.notes);
+  set('iEbayUrl',item.ebayUrl);
+  if(item.measurements){
+    const parts=item.measurements.split(/x|×/i).map(s=>s.replace(/['"]/g,'').trim());
+    set('iMeasL',parts[0]||'');
+    set('iMeasW',parts[1]||'');
+    set('iMeasH',parts[2]||'');
+    updateMeasDisplay();
+  }
+  _loadedDocId = docId;
+  document.getElementById('loadInput').value = '';
+  closeDropdown();
+  document.getElementById('invAddBtn').style.display='none';
+  document.getElementById('invUpdateRow').style.display='flex';
+  setLoadStatus('✓ Loaded: "'+item.name+'" — run Research or Generate','var(--success)');
+  window.scrollTo(0,0);
+  setTimeout(()=>setLoadStatus(''),5000);
+}
+
+// Close dropdown when clicking outside
+document.addEventListener('click', e=>{
+  if(!document.getElementById('invSearchWrap')?.contains(e.target)) closeDropdown();
+});
+
+// Keep loadFromInventory as alias for backward compat
+function loadFromInventory(){ onSearchInput(); }
+
+function resetForm(){
+  // Clear all item detail fields
+  ['iName','iSku','iEra','iCost','iPrice','iDate','iWeight','iDims',
+   'iPurchaseSource','iOrderId','iNotes','iEbayUrl',
+   'iMeasL','iMeasW','iMeasH'].forEach(id=>{
+    const el=document.getElementById(id);if(el)el.value='';
+  });
+  // Reset dropdowns to defaults
+  const defaults={iCat:'',iCond:'Good',iSource:'Inherited',iLoc:'NC',iStatus:'Unlisted'};
+  Object.entries(defaults).forEach(([id,val])=>{const el=document.getElementById(id);if(el)el.value=val;});
+  // Clear measurement display
+  const md=document.getElementById('measDisplay');if(md)md.textContent='';
+  // Reset photos
+  photos=[];renderThumbs();refreshEdSel();
+  // Reset inventory state
+  _loadedDocId=null;
+  document.getElementById('invAddBtn').style.display='block';
+  document.getElementById('invUpdateRow').style.display='none';
+  setInvStatus('');setLoadStatus('');
+  // Clear output panel
+  document.getElementById('out').innerHTML='<div class="empty"><div class="ei">✦</div><h2>Ready when you are</h2><p>Hit <strong>Research</strong> to identify and value your item, or <strong>Research + Generate</strong> to do everything at once.</p></div>';
+  const _ro=document.getElementById('researchOut');if(_ro){_ro.innerHTML='';_ro.style.display='none';}
+  window.scrollTo(0,0);
+}
+
+// Reset to Add mode when item name is cleared
+document.addEventListener('input',e=>{
+  if(e.target.id==='iName'&&!e.target.value.trim()){
+    _loadedDocId=null;
+    document.getElementById('invAddBtn').style.display='block';
+    document.getElementById('invUpdateBtn').style.display='none';
+  }
+});
+
+// ============================================================
+// CAMPAIGN MANAGER
+// ============================================================
+
+// Build the 8-week arc for a campaign
+function buildArc(platforms, startDate, itemName, ebayUrl) {
+  const start = new Date(startDate);
+  const arc = [];
+
+  const platConfig = {
+    instagram: { icon:'📸', name:'Instagram', steps:[
+      {week:1, day:1,  action:'Launch post — introduce the item, storyteller caption'},
+      {week:1, day:4,  action:'Story highlight — behind the scenes or detail shot'},
+      {week:2, day:3,  action:'Re-share with updated caption angle'},
+      {week:3, day:2,  action:'Engagement post — ask followers a related question'},
+      {week:4, day:1,  action:'Feature again with fresh hook or seasonal tie-in'},
+      {week:5, day:3,  action:'Story poll or quiz related to item era/type'},
+      {week:6, day:2,  action:'Re-list reminder post with updated visuals if possible'},
+      {week:8, day:1,  action:'Final push — price drop mention if applicable'},
+    ]},
+    facebook: { icon:'👥', name:'Facebook Groups', steps:[
+      {week:1, day:1,  action:'Initial listing post in relevant groups'},
+      {week:2, day:2,  action:'Comment bump — reply to any engagement, re-share'},
+      {week:3, day:1,  action:'Cross-post to additional groups'},
+      {week:4, day:3,  action:'Re-post with updated description or new detail photo'},
+      {week:6, day:1,  action:'Re-list — fresh post flagged as re-listed'},
+      {week:8, day:2,  action:'Final offer post — price reduced if unsold'},
+    ]},
+    pinterest: { icon:'📌', name:'Pinterest', steps:[
+      {week:1, day:1,  action:'Pin to primary vintage/collectibles board'},
+      {week:2, day:3,  action:'Pin to secondary niche board (era or category specific)'},
+      {week:4, day:1,  action:'Create new pin with alternate photo'},
+      {week:6, day:2,  action:'Re-pin to seasonal or trending board if relevant'},
+    ]},
+    ebay: { icon:'🛒', name:'eBay', steps:[
+      {week:1, day:1,  action:'List item — use generated title and description'},
+      {week:2, day:1,  action:'Review listing — check views and watchers in Seller Hub'},
+      {week:3, day:1,  action:'Promote listing if low views (consider Promoted Listings)'},
+      {week:4, day:2,  action:'Check comps — verify pricing is still competitive'},
+      {week:6, day:1,  action:'Relist or revise — update title keywords if needed'},
+      {week:7, day:1,  action:'Send offer to watchers via eBay Seller Hub'},
+      {week:8, day:1,  action:'Reduce price or relist in new category if unsold'},
+    ]},
+    etsy: { icon:'🧵', name:'Etsy', steps:[
+      {week:1, day:1,  action:'List item — use generated Etsy title and description'},
+      {week:2, day:2,  action:'Review Etsy stats — check views, favorites, search terms'},
+      {week:3, day:1,  action:'Renew listing to boost search placement'},
+      {week:5, day:1,  action:'Update tags based on search performance data'},
+      {week:7, day:1,  action:'Run a sale or offer discount to favorited shoppers'},
+    ]},
+  };
+
+  platforms.forEach(plat => {
+    const cfg = platConfig[plat];
+    if(!cfg) return;
+    const steps = cfg.steps.map(s => {
+      const d = new Date(start);
+      d.setDate(d.getDate() + (s.week - 1) * 7 + (s.day - 1));
+      return {
+        ...s,
+        date: d.toISOString().split('T')[0],
+        done: false,
+        id: plat + '_w' + s.week + '_d' + s.day,
+      };
+    });
+    arc.push({ platform: plat, icon: cfg.icon, name: cfg.name, steps });
+  });
+  return arc;
+}
+
+function formatDate(iso) {
+  const d = new Date(iso + 'T12:00:00');
+  return d.toLocaleDateString('en-US', {month:'short', day:'numeric'});
+}
+
+function stepStatus(dateIso, done) {
+  if(done) return 'done';
+  const today = new Date().toISOString().split('T')[0];
+  if(dateIso < today) return 'overdue';
+  if(dateIso === today) return 'today';
+  return 'upcoming';
+}
+
+// Save campaign to Firebase
+async function startCampaign() {
+  const btn = document.getElementById('startCampBtn');
+  const status = document.getElementById('startCampStatus');
+  const inp = getInputs();
+
+  if(!inp.name) { status.textContent = 'Enter an item name first.'; status.style.color='#c0392b'; return; }
+  if(!inp.plats.length) { status.textContent = 'Select at least one platform.'; status.style.color='#c0392b'; return; }
+
+  btn.disabled = true;
+  status.textContent = 'Saving campaign...'; status.style.color = 'var(--muted)';
+
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const arc = buildArc(inp.plats, today, inp.name, inp.ebayUrl);
+
+    const campaign = {
+      id: Date.now() + '',
+      itemName: inp.name,
+      sku: inp.sku || '',
+      category: inp.cat || '',
+      ebayUrl: inp.ebayUrl || '',
+      startDate: today,
+      platforms: inp.plats,
+      arc,
+      status: 'active',
+      createdAt: new Date().toISOString(),
+    };
+
+    await db.collection('campaigns').doc(campaign.id).set(campaign);
+    status.textContent = '✓ Campaign started — track it in the Active Campaigns tab.';
+    status.style.color = 'var(--success)';
+
+    // Update badge on tab
+    updateMgrBadge();
+    setTimeout(() => { status.textContent = ''; btn.disabled = false; }, 4000);
+  } catch(e) {
+    status.textContent = 'Error: ' + e.message; status.style.color = '#c0392b';
+    btn.disabled = false;
+  }
+}
+
+// Load and render campaigns
+let _campaigns = [];
+
+async function loadCampaigns() {
+  try {
+    const snap = await db.collection('campaigns').where('status','==','active').orderBy('startDate','desc').get();
+    _campaigns = snap.docs.map(d => d.data());
+    renderCampList();
+    checkDue();
+  } catch(e) {
+    console.error('Load campaigns error:', e);
+  }
+}
+
+function renderCampList() {
+  const el = document.getElementById('campList');
+  if(!el) return;
+  if(!_campaigns.length) {
+    el.innerHTML = '<div class="mgr-empty"><div class="ei">📋</div><h2>No active campaigns</h2><p>Generate a campaign and hit "Start Campaign" to begin tracking it here.</p></div>';
+    return;
+  }
+
+  el.innerHTML = _campaigns.map(c => {
+    // Calculate overall progress
+    const allSteps = c.arc.flatMap(p => p.steps);
+    const doneCount = allSteps.filter(s => s.done).length;
+    const pct = allSteps.length ? Math.round(doneCount / allSteps.length * 100) : 0;
+
+    // Find next due step
+    const today = new Date().toISOString().split('T')[0];
+    const nextStep = allSteps.filter(s => !s.done).sort((a,b) => a.date.localeCompare(b.date))[0];
+    const overdueCount = allSteps.filter(s => !s.done && s.date < today).length;
+
+    const weekNum = Math.min(8, Math.ceil((new Date() - new Date(c.startDate + 'T12:00:00')) / (7 * 86400000)) + 1);
+
+    return `<div class="camp-card" id="card-${c.id}">
+      <div class="camp-card-head" onclick="toggleCamp('${c.id}')">
+        <div style="flex:1;min-width:0;">
+          <div class="camp-card-name">${esc(c.itemName)}</div>
+          <div class="camp-card-meta" style="text-align:left;margin-top:3px;">
+            Week ${weekNum} of 8 · ${doneCount}/${allSteps.length} steps done
+            ${overdueCount > 0 ? `<span style="color:#c0392b;margin-left:6px;">· ${overdueCount} overdue</span>` : ''}
+            ${nextStep && !overdueCount ? `<span style="color:var(--muted);margin-left:6px;">· Next: ${formatDate(nextStep.date)}</span>` : ''}
+          </div>
+        </div>
+        <span class="camp-card-chevron" id="chev-${c.id}">▶</span>
+      </div>
+      <div class="camp-progress"><div class="camp-progress-bar" style="width:${pct}%"></div></div>
+      <div class="camp-card-body" id="body-${c.id}">
+        ${c.arc.map(p => renderPlatformArc(c.id, p)).join('')}
+        <div class="camp-actions">
+          ${c.ebayUrl ? `<a href="${esc(c.ebayUrl)}" target="_blank" style="flex:1;text-align:center;font-family:'DM Mono',monospace;font-size:.6rem;letter-spacing:.08em;text-transform:uppercase;color:var(--info);text-decoration:none;padding:8px;border:1px solid var(--info-border);">View eBay Listing ↗</a>` : ''}
+          <button class="camp-archive-btn" onclick="archiveCampaign('${c.id}')">Archive</button>
+          <button class="camp-end-btn" onclick="endCampaign('${c.id}')">End Campaign</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderPlatformArc(campId, platData) {
+  const today = new Date().toISOString().split('T')[0];
+  const doneCount = platData.steps.filter(s => s.done).length;
+
+  return `<div class="arc-platform">
+    <div class="arc-plat-head">
+      <span class="arc-plat-icon">${platData.icon}</span>
+      <span class="arc-plat-name">${platData.name}</span>
+      <span class="arc-plat-done">${doneCount}/${platData.steps.length}</span>
+    </div>
+    ${platData.steps.map(step => {
+      const status = stepStatus(step.date, step.done);
+      return `<div class="arc-step ${status}" id="step-${campId}-${step.id}">
+        <input type="checkbox" ${step.done?'checked':''} onchange="toggleStep('${campId}','${platData.platform}','${step.id}',this.checked)">
+        <div class="arc-step-info">
+          <div class="arc-step-label ${step.done?'done':''}">${esc(step.action)}</div>
+          <div class="arc-step-date">Week ${step.week} · ${formatDate(step.date)}</div>
+        </div>
+        ${status!=='upcoming'&&status!=='done' ? `<span class="arc-step-status ${status}">${status}</span>` : ''}
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
+function toggleCamp(id) {
+  const body = document.getElementById('body-' + id);
+  const chev = document.getElementById('chev-' + id);
+  if(!body || !chev) return;
+  const isOpen = body.classList.contains('open');
+  body.classList.toggle('open', !isOpen);
+  chev.classList.toggle('open', !isOpen);
+}
+
+async function toggleStep(campId, platform, stepId, checked) {
+  try {
+    const camp = _campaigns.find(c => c.id === campId);
+    if(!camp) return;
+
+    const platIdx = camp.arc.findIndex(p => p.platform === platform);
+    if(platIdx === -1) return;
+    const stepIdx = camp.arc[platIdx].steps.findIndex(s => s.id === stepId);
+    if(stepIdx === -1) return;
+
+    camp.arc[platIdx].steps[stepIdx].done = checked;
+
+    // Update in Firestore
+    await db.collection('campaigns').doc(campId).update({ arc: camp.arc });
+
+    // Re-render just this card
+    const allSteps = camp.arc.flatMap(p => p.steps);
+    const doneCount = allSteps.filter(s => s.done).length;
+    const pct = allSteps.length ? Math.round(doneCount / allSteps.length * 100) : 0;
+    const pb = document.querySelector('#card-' + campId + ' .camp-progress-bar');
+    if(pb) pb.style.width = pct + '%';
+
+    // Update step style
+    const stepEl = document.getElementById('step-' + campId + '-' + stepId);
+    if(stepEl) {
+      const status = stepStatus(camp.arc[platIdx].steps[stepIdx].date, checked);
+      stepEl.className = 'arc-step ' + status;
+      const label = stepEl.querySelector('.arc-step-label');
+      if(label) label.className = 'arc-step-label' + (checked?' done':'');
+    }
+
+    // Update platform done count
+    const platEl = document.querySelector('#body-' + campId + ' .arc-platform:nth-child(' + (platIdx+1) + ') .arc-plat-done');
+    if(platEl) {
+      const platDone = camp.arc[platIdx].steps.filter(s => s.done).length;
+      platEl.textContent = platDone + '/' + camp.arc[platIdx].steps.length;
+    }
+
+    updateMgrBadge();
+  } catch(e) {
+    console.error('toggleStep error:', e);
+  }
+}
+
+async function archiveCampaign(id) {
+  if(!confirm('Archive this campaign? It will be removed from active view.')) return;
+  try {
+    await db.collection('campaigns').doc(id).update({ status: 'archived' });
+    _campaigns = _campaigns.filter(c => c.id !== id);
+    renderCampList();
+    updateMgrBadge();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function endCampaign(id) {
+  if(!confirm('Mark this campaign as ended and remove from active list?')) return;
+  try {
+    await db.collection('campaigns').doc(id).update({ status: 'ended' });
+    _campaigns = _campaigns.filter(c => c.id !== id);
+    renderCampList();
+    updateMgrBadge();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+function checkDue() {
+  const today = new Date().toISOString().split('T')[0];
+  const dueItems = [];
+
+  _campaigns.forEach(c => {
+    const allSteps = c.arc.flatMap(p => p.steps);
+    const todaySteps = allSteps.filter(s => !s.done && s.date === today);
+    const overdueSteps = allSteps.filter(s => !s.done && s.date < today);
+    const tomorrowSteps = allSteps.filter(s => {
+      const tom = new Date(); tom.setDate(tom.getDate()+1);
+      return !s.done && s.date === tom.toISOString().split('T')[0];
+    });
+
+    if(todaySteps.length) dueItems.push({ name: c.itemName, count: todaySteps.length, type: 'today' });
+    else if(overdueSteps.length) dueItems.push({ name: c.itemName, count: overdueSteps.length, type: 'overdue' });
+    else if(tomorrowSteps.length) dueItems.push({ name: c.itemName, count: tomorrowSteps.length, type: 'upcoming' });
+  });
+
+  const banner = document.getElementById('dueBanner');
+  if(!banner || !dueItems.length) { if(banner) banner.innerHTML=''; return; }
+
+  banner.innerHTML = `<div class="due-banner">
+    <div class="db-title">📋 Campaign Reminders</div>
+    ${dueItems.map(d => `<div class="db-item"><span class="due-badge ${d.type}">${d.type==='today'?'Today':d.type==='overdue'?'Overdue':'Tomorrow'}</span>${esc(d.name)} — ${d.count} action${d.count>1?'s':''} pending <button onclick="switchTabById('manager')" style="background:none;border:none;color:var(--amber-light);font-family:'DM Mono',monospace;font-size:.6rem;cursor:pointer;text-decoration:underline;padding:0;margin-left:6px;">View →</button></div>`).join('')}
+  </div>`;
+
+  // Update tab badge count
+  updateMgrBadge();
+}
+
+function updateMgrBadge() {
+  const today = new Date().toISOString().split('T')[0];
+  const urgentCount = _campaigns.reduce((n, c) => {
+    return n + c.arc.flatMap(p => p.steps).filter(s => !s.done && s.date <= today).length;
+  }, 0);
+  const badge = document.querySelector('#mgr-tab-btn .mgr-badge');
+  if(badge) {
+    badge.textContent = urgentCount > 0 ? urgentCount : '';
+    badge.classList.toggle('visible', urgentCount > 0);
+  }
+}
+
+function switchTabById(tab) {
+  const btn = document.querySelector(`[onclick="switchTab('${tab}',this)"]`);
+  if(btn) { switchTab(tab, btn); }
+}
+
+window.addEventListener('load', ()=>{ initApiKey(); loadCampaigns(); });
+</script>
+
+<!-- ===== CAMPAIGN MANAGER TAB ===== -->
+<div class="tab-content" id="tab-manager">
+  <div class="page">
+    <div id="dueBanner"></div>
+    <div class="sec" style="margin-top:0;">Active Campaigns</div>
+    <div id="campList"><div class="mgr-empty"><div class="ei">📋</div><h2>No active campaigns</h2><p>Generate a campaign and hit "Start Campaign" to begin tracking it here.</p></div></div>
+  </div>
+</div>
+
+</body>
+</html>
